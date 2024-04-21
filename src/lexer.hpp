@@ -33,8 +33,12 @@ void print_tokens(std::vector<Token> &tokens)
             break;
         case TokenType::semi:
             std::cout << "semicolon" << std::endl;
+            break;
         case TokenType::type:
             std::cout << "type: " << tokens[i].val.value() << std::endl;
+            break;
+        default:
+            break;
         }
     }
 }
@@ -105,8 +109,9 @@ public:
             buf.push_back(take());
             while (peek().has_value() && std::isdigit(peek().value()))
             {
-               tokens.push_back({TokenType::i_int, lc, buf});
+                buf.push_back(take());
             }
+            tokens.push_back({TokenType::i_int, lc, buf});
             buf.clear();
             return true;
         }

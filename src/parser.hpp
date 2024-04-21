@@ -63,7 +63,6 @@ public:
         std::optional<NodeProg> root;
         while (peek().has_value())
         {
-
             if (peek().has_value() && peek().value().type == TokenType::ret)
             {
                 take();
@@ -77,6 +76,7 @@ public:
                 std::cerr << "Invalid expression" << std::endl;
                 exit(EXIT_FAILURE);
             }
+
             if (peek().has_value() && peek().value().type == TokenType::semi)
             {
                 take();
