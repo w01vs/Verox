@@ -7,7 +7,7 @@ Some parts of Velox
 * **return**
 
 ### Types
-* **int**
+* **int** = an unsigned 64-bit integer.
 
 
 

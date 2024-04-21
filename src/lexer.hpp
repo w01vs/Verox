@@ -9,7 +9,9 @@ enum class TokenType
     ret,
     i_int,
     semi,
-    type
+    type,
+    ident,
+    assign
 };
 struct Token
 {
@@ -36,6 +38,12 @@ void print_tokens(std::vector<Token> &tokens)
             break;
         case TokenType::type:
             std::cout << "type: " << tokens[i].val.value() << std::endl;
+            break;
+        case TokenType::ident:
+            std::cout << "identifier: " << tokens[i].val.value() << std::endl;
+            break;
+        case TokenType::assign:
+            std::cout << "assignment" << std::endl;
             break;
         default:
             break;
@@ -64,9 +72,8 @@ public:
             else if (symbols(tokens, buf, lc))
             {
             }
-            else
-            {
-                std::cerr << "Invalid token" << std::endl;
+            else {
+                std::cerr << "dude what the fuck is that" << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
@@ -87,17 +94,20 @@ public:
             {
                 tokens.push_back({TokenType::ret, lc});
                 buf.clear();
+                return true;
             }
-            /*else if (buf == "int")
+            else if (buf == "int")
             {
                 tokens.push_back({TokenType::type, lc, buf});
                 buf.clear();
-                while (peek().has_value() && std::isspace(peek().value()))
-                {
-                    buf.push_back(take());
-                }
-            }*/
-            return true;
+                return true;
+            }
+            else
+            {
+                tokens.push_back({TokenType::ident, lc, buf});
+                buf.clear();
+                return true;
+            }
         }
         return false;
     }
@@ -124,6 +134,12 @@ public:
         {
             take();
             tokens.push_back({TokenType::semi, lc});
+            return true;
+        }
+        else if (peek().has_value() && peek().value() == '=')
+        {
+            take();
+            tokens.push_back({TokenType::assign, lc});
             return true;
         }
         else if (peek().has_value() && peek().value() == '\n')
