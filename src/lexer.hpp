@@ -8,21 +8,36 @@ enum class TokenType
 {
     ret,
     i_int,
-    semi
+    semi,
+    type
 };
-
-enum class LangType
-{
-    _int
-};
-
 struct Token
 {
     TokenType type;
     int line;
     std::optional<std::string> val{};
-    std::optional<LangType> ltype{};
 };
+
+void print_tokens(std::vector<Token> &tokens)
+{
+    for (int i = 0; i < tokens.size(); i++)
+    {
+        std::cout << "Next token: " << std::endl;
+        switch (tokens[i].type)
+        {
+        case TokenType::i_int:
+            std::cout << "i_int: " << tokens[i].val.value() << std::endl;
+            break;
+        case TokenType::ret:
+            std::cout << "return" << std::endl;
+            break;
+        case TokenType::semi:
+            std::cout << "semicolon" << std::endl;
+        case TokenType::type:
+            std::cout << "type: " << tokens[i].val.value() << std::endl;
+        }
+    }
+}
 
 class Lexer
 {
@@ -69,6 +84,15 @@ public:
                 tokens.push_back({TokenType::ret, lc});
                 buf.clear();
             }
+            /*else if (buf == "int")
+            {
+                tokens.push_back({TokenType::type, lc, buf});
+                buf.clear();
+                while (peek().has_value() && std::isspace(peek().value()))
+                {
+                    buf.push_back(take());
+                }
+            }*/
             return true;
         }
         return false;
@@ -81,9 +105,8 @@ public:
             buf.push_back(take());
             while (peek().has_value() && std::isdigit(peek().value()))
             {
-                buf.push_back(take());
+               tokens.push_back({TokenType::i_int, lc, buf});
             }
-            tokens.push_back({TokenType::i_int, lc, buf, LangType::_int});
             buf.clear();
             return true;
         }

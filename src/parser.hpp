@@ -79,12 +79,11 @@ public:
             }
             if (peek().has_value() && peek().value().type == TokenType::semi)
             {
-
                 take();
             }
             else
             {
-                std::cerr << "Invalid expression" << std::endl;
+                std::cerr << "Expected ';' at line " << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
