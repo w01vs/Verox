@@ -63,13 +63,13 @@ public:
         std::optional<NodeProg> root;
         while (peek().has_value())
         {
-            
+
             if (peek().has_value() && peek().value().type == TokenType::ret)
             {
                 take();
                 if (auto expr = parse_expr())
                 {
-                    root = NodeProg { .expr = (expr.value()) };
+                    root = NodeProg{.expr = (expr.value())};
                 }
             }
             else
@@ -79,7 +79,7 @@ public:
             }
             if (peek().has_value() && peek().value().type == TokenType::semi)
             {
-                
+
                 take();
             }
             else

@@ -12,7 +12,7 @@ public:
         output << "global _start\nsection .text\n_start:\n";
         output << "    mov rax, 60\n";
         output << "    mov rdi, " << root.expr.i_int.val.value() << "\n";
-        output << "    syscall"; 
+        output << "    syscall";
         return output.str();
     }
 

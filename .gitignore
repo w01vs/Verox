@@ -4,3 +4,5 @@ cmake-build*
 .vscode
 *.exe
 out*
+cmake*
+Makefile

@@ -1,5 +1,5 @@
 ## Syntax
-Some parts of this language?
+Some parts of Velox
 
 ### Operators
 * **;**
