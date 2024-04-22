@@ -118,7 +118,8 @@ public:
                 take(); // take '=' operator
                 if (auto expr = parse_expr())
                     stmt_var.expr = expr.value();
-                else {
+                else
+                {
                     std::cerr << "SyntaxError: Expected a value of type '" << type_string(stmt_var.type) << "' but got nothing" << std::endl;
                     exit(EXIT_FAILURE);
                 }
@@ -128,7 +129,8 @@ public:
 
                     std::visit([](auto &&arg)
                                { if constexpr(std::is_same_v<decltype(arg), NodeExprIdent>) {std::cout << arg.ident.line << std::endl;}
-                    else if constexpr(std::is_same_v<decltype(arg), NodeExprIInt>) { std::cout << arg.i_int.line << std::endl;} }, stmt_var.expr.var);
+                    else if constexpr(std::is_same_v<decltype(arg), NodeExprIInt>) { std::cout << arg.i_int.line << std::endl;} },
+                               stmt_var.expr.var);
 
                     exit(EXIT_FAILURE);
                 }
@@ -145,17 +147,19 @@ public:
 
                 if (peek().has_value() && peek().value().type == TokenType::close_p)
                     take();
-                else{
+                else
+                {
                     std::cerr << "SyntaxError: Expected ')' on line " << peek().value().line << std::endl;
                     exit(EXIT_FAILURE);
                 }
                 if (peek().has_value() && peek().value().type == TokenType::semi)
                     take();
-                else {
+                else
+                {
                     std::cerr << "SyntaxError: Expected ';' on line " << peek().value().line << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                    
+
                 return NodeStmt{NodeInternal{stmt_prt}};
             }
         }

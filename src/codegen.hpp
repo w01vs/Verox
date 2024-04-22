@@ -52,7 +52,7 @@ public:
             {
                 if (gen->vars.contains(var.ident.val.value()))
                 {
-                    std::cerr << "Identifier '" << var.ident.val.value() << "' has already been declared" << std::endl;
+                    std::cerr << "Error: Identifier '" << var.ident.val.value() << "' has already been declared on line " << gen->vars.at(var.ident.val.value()).line << ", but was declared again on line " << var.ident.line << std::endl;
                     exit(EXIT_FAILURE);
                 }
 
@@ -65,14 +65,14 @@ public:
                         const auto temp = ident.ident.val.value();
                         if (!gen->vars.contains(temp))
                         {
-                            std::cerr << "Error: Identifier '" << temp << "' has not been declared" << std::endl;
+                            std::cerr << "Error: Undeclared identifier '" << ident.ident.val.value() << "' on line " << ident.ident.line << std::endl;
                             exit(EXIT_FAILURE);
                         }
                         else
                         {
                             if (gen->vars.at(temp).type == var.type)
                             {
-                                gen->vars.insert({var.ident.val.value(), Var{gen->sp, var.type}});
+                                gen->vars.insert({var.ident.val.value(), Var{gen->sp, var.type, var.ident.line}});
                                 gen->gen_expr(var.expr);
                             }
                             else
@@ -83,7 +83,7 @@ public:
                     }
                     void operator()(const NodeExprIInt &i_int) const
                     {
-                        gen->vars.insert({var.ident.val.value(), Var{gen->sp, var.type}});
+                        gen->vars.insert({var.ident.val.value(), Var{gen->sp, var.type, i_int.i_int.line}});
                         gen->gen_expr(var.expr);
                     }
                 };
@@ -107,7 +107,7 @@ public:
             {
                 if (!gen->vars.contains(ident.ident.val.value()))
                 {
-                    std::cerr << "Undeclared identifier '" << ident.ident.val.value() << "' on line " << ident.ident.line << std::endl;
+                    std::cerr << "Error: Undeclared identifier '" << ident.ident.val.value() << "' on line " << ident.ident.line << std::endl;
                     exit(EXIT_FAILURE);
                 }
                 const auto &var = gen->vars.at(ident.ident.val.value());
@@ -142,7 +142,10 @@ public:
                     gen->internals_called.insert({"ret", true});
                 gen->gen_expr(ret.ret);
                 gen->pop("rdi");
-                gen->code << "    add rsp, " << (gen->sp - 1) * 8 << "\n";
+                if (gen->sp % 2 != 0)
+                    gen->code << "    add rsp, " << (gen->sp) * 8 << "\n";
+                else
+                    gen->code << "    add rsp, " << (gen->sp - 1) * 8 << "\n";
                 gen->code << "    mov rsp, rbp\n";
                 gen->pop("rbp");
                 gen->code << "    mov rax, 60\n";
@@ -158,12 +161,11 @@ public:
                     gen->ext << "\n";
                 }
                 gen->data << "    s" << gen->str_count++ << " db \"" << gen->gen_expr(print.print) << "\",0\n";
-                //gen->code << "    mov rbx, rsp\n";
+
                 gen->code << "    lea rdi, [s0]\n";
-                gen->code << "    sub rsp, 8\n";
+                if (gen->sp % 2 != 0)
+                    gen->code << "    sub rsp, 8\n";
                 gen->code << "    call puts\n";
-                //gen->code << "    add rsp, 8\n";
-                //gen->code << "    mov rsp, rbx\n";
                 gen->code << "\n";
             }
         };
@@ -184,6 +186,7 @@ private:
     {
         size_t stackl;
         Type type;
+        int line;
     };
 
     std::unordered_map<std::string, Var> vars;

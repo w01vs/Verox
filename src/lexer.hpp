@@ -6,7 +6,7 @@
 
 enum class TokenType
 {
-    ret,     // return
+    ret,     // return -> internal
     i_int,   // immediate int
     semi,    // semicolon
     type,    // a type
@@ -14,8 +14,10 @@ enum class TokenType
     assign,  // '='
     open_p,  // opening parenthesis
     close_p, // closing parenthesis
-    print
+    print,   // print -> internal
+    add      // '+'
 };
+
 struct Token
 {
     TokenType type;
@@ -182,6 +184,11 @@ public:
         else if (peek().has_value() && std::isspace(peek().value()))
         {
             take();
+            return true;
+        }
+        else if(peek().has_value() && peek().value() == '+') {
+            take();
+            tokens.push_back({TokenType::add, lc});
             return true;
         }
         return false;

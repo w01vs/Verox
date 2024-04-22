@@ -1,5 +1,4 @@
 int x = 9;
-int y = x;
+int y = 9;
 print(5);
-int z = 5;
-return y;
+return x;
