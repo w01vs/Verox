@@ -46,7 +46,6 @@ int main(int argc, char *argv[])
     Generator gen(tree.value());
 
     std::fstream out("verox.asm", std::ios::out);
-
     out << gen.gen_prog();
     out.close();
     // std::string path = "/mnt/c/Programming/compiler/";
@@ -54,7 +53,7 @@ int main(int argc, char *argv[])
     // std::cout << command << std::endl;
     // system(command.c_str());
     system("nasm -felf64 verox.asm");
-    system("ld verox.o -o verox");
+    system("ld -o verox verox.o -L/lib/x86_64-linux-gnu -lc --dynamic-linker /lib64/ld-linux-x86-64.so.2");
 
     return EXIT_SUCCESS;
 }

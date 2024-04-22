@@ -6,12 +6,15 @@
 
 enum class TokenType
 {
-    ret,
-    i_int,
-    semi,
-    type,
-    ident,
-    assign
+    ret,     // return
+    i_int,   // immediate int
+    semi,    // semicolon
+    type,    // a type
+    ident,   // a variable name
+    assign,  // '='
+    open_p,  // opening parenthesis
+    close_p, // closing parenthesis
+    print
 };
 struct Token
 {
@@ -45,6 +48,15 @@ void print_tokens(std::vector<Token> &tokens)
         case TokenType::assign:
             std::cout << "assignment" << std::endl;
             break;
+        case TokenType::close_p:
+            std::cout << ")" << std::endl;
+            break;
+        case TokenType::open_p:
+            std::cout << "(" << std::endl;
+            break;
+        case TokenType::print:
+            std::cout << "print" << std::endl;
+            break;
         default:
             break;
         }
@@ -72,7 +84,8 @@ public:
             else if (symbols(tokens, buf, lc))
             {
             }
-            else {
+            else
+            {
                 std::cerr << "dude what the fuck is that" << std::endl;
                 exit(EXIT_FAILURE);
             }
@@ -99,6 +112,12 @@ public:
             else if (buf == "int")
             {
                 tokens.push_back({TokenType::type, lc, buf});
+                buf.clear();
+                return true;
+            }
+            else if (buf == "print")
+            {
+                tokens.push_back({TokenType::print, lc});
                 buf.clear();
                 return true;
             }
@@ -146,6 +165,18 @@ public:
         {
             take();
             lc++;
+            return true;
+        }
+        else if (peek().has_value() && peek().value() == '(')
+        {
+            take();
+            tokens.push_back({TokenType::open_p, lc});
+            return true;
+        }
+        else if (peek().has_value() && peek().value() == ')')
+        {
+            take();
+            tokens.push_back({TokenType::close_p, lc});
             return true;
         }
         else if (peek().has_value() && std::isspace(peek().value()))

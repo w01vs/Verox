@@ -22,14 +22,20 @@ public:
 
     std::string gen_prog()
     {
-        output << "global _start\nsection .text\n_start:\n";
+        ext << "global _start\nsection .text\n";
+        code << "_start:\n";
+        push("rbp");
+        code << "    mov rbp, rsp\n\n";
+        data << "section .data\n";
         for (int i = 0; i < root.stmts.size(); i++)
         {
             gen_stmt(root.stmts[i]);
         }
-        if (!ret)
+        if (!internals_called.at("ret"))
             gen_ret();
-        return output.str();
+        data << "\n";
+        data << ext.str() << code.str();
+        return data.str();
     }
 
     void gen_stmt(const NodeStmt &stmt)
@@ -78,7 +84,7 @@ public:
                     void operator()(const NodeExprIInt &i_int) const
                     {
                         gen->vars.insert({var.ident.val.value(), Var{gen->sp, var.type}});
-                                    gen->gen_expr(var.expr);
+                        gen->gen_expr(var.expr);
                     }
                 };
 
@@ -91,12 +97,13 @@ public:
         std::visit(visitor, stmt.var);
     }
 
-    void gen_expr(const NodeExpr &expr)
+    std::string gen_expr(const NodeExpr &expr)
     {
         struct ExprVisitor
         {
             Generator *const gen;
-            void operator()(const NodeExprIdent &ident) const
+            bool eval;
+            std::string operator()(const NodeExprIdent &ident) const
             {
                 if (!gen->vars.contains(ident.ident.val.value()))
                 {
@@ -105,18 +112,23 @@ public:
                 }
                 const auto &var = gen->vars.at(ident.ident.val.value());
                 std::stringstream offset;
-                offset << "QWORD [rsp + " << (gen->sp - var.stackl - 1) * 8 << "]\n";
+                offset << "QWORD [rsp + " << (gen->sp - var.stackl - 1) * 8 << "]";
                 gen->push(offset.str());
+                gen->code << "\n";
+
+                return ident.ident.val.value();
             }
-            void operator()(const NodeExprIInt &i_int) const
+            std::string operator()(const NodeExprIInt &i_int) const
             {
-                gen->output << "    mov rax, " << i_int.i_int.val.value() << "\n";
+                gen->code << "    mov rax, " << i_int.i_int.val.value() << "\n";
                 gen->push("rax");
+                gen->code << "\n";
+                return i_int.i_int.val.value();
             }
         };
 
         ExprVisitor visitor{this};
-        std::visit(visitor, expr.var);
+        return std::visit(visitor, expr.var);
     }
 
     void gen_internal(const NodeInternal &internal)
@@ -126,11 +138,33 @@ public:
             Generator *const gen;
             void operator()(const NodeInternalRet &ret) const
             {
+                if (!gen->internals_called.contains("ret"))
+                    gen->internals_called.insert({"ret", true});
                 gen->gen_expr(ret.ret);
-                gen->output << "    mov rax, 60\n";
                 gen->pop("rdi");
-                gen->output << "    syscall\n";
-                gen->ret = true;
+                gen->code << "    add rsp, " << (gen->sp - 1) * 8 << "\n";
+                gen->code << "    mov rsp, rbp\n";
+                gen->pop("rbp");
+                gen->code << "    mov rax, 60\n";
+                gen->code << "    syscall\n";
+                gen->code << "\n";
+            }
+            void operator()(const NodeInternalPrintf &print) const
+            {
+                if (!gen->internals_called.contains("puts"))
+                {
+                    gen->internals_called.insert({"puts", true});
+                    gen->ext << "extern puts\n";
+                    gen->ext << "\n";
+                }
+                gen->data << "    s" << gen->str_count++ << " db \"" << gen->gen_expr(print.print) << "\",0\n";
+                //gen->code << "    mov rbx, rsp\n";
+                gen->code << "    lea rdi, [s0]\n";
+                gen->code << "    sub rsp, 8\n";
+                gen->code << "    call puts\n";
+                //gen->code << "    add rsp, 8\n";
+                //gen->code << "    mov rsp, rbx\n";
+                gen->code << "\n";
             }
         };
 
@@ -140,9 +174,11 @@ public:
 
 private:
     const NodeProg root;
-    std::stringstream output;
-    bool ret = false;
+    std::stringstream code;
+    std::stringstream ext;
+    std::stringstream data;
     size_t sp = 0;
+    size_t str_count = 0;
 
     struct Var
     {
@@ -151,23 +187,27 @@ private:
     };
 
     std::unordered_map<std::string, Var> vars;
+    std::unordered_map<std::string, bool> internals_called;
 
     void gen_ret()
     {
-        output << "    mov rax, 60\n";
-        output << "    xor rdi, rdi\n";
-        output << "    syscall\n";
+        code << "    add rsp, " << (sp - 1) * 8 << "\n";
+        code << "    mov rsp, rbp\n";
+        pop("rbp");
+        code << "    mov rax, 60\n";
+        code << "    xor rdi, rdi\n";
+        code << "    syscall\n";
     }
 
     void pop(const std::string &reg)
     {
-        output << "    pop " << reg << "\n";
+        code << "    pop " << reg << "\n";
         sp--;
     }
 
     void push(const std::string &reg)
     {
-        output << "    push " << reg << "\n";
+        code << "    push " << reg << "\n";
         sp++;
     }
 };

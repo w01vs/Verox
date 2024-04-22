@@ -31,10 +31,15 @@ struct NodeInternalRet
     NodeExpr ret; // return val
 };
 
+struct NodeInternalPrintf
+{
+    NodeExpr print;
+};
+
 // internal 'functions' such as return and possibly print etc.
 struct NodeInternal
 {
-    std::variant<NodeInternalRet> ret; // return
+    std::variant<NodeInternalRet, NodeInternalPrintf> ret; // return
 };
 
 // variable declaration with a type.
@@ -98,12 +103,10 @@ public:
                     ret = {expr.value()};
                 }
                 if (peek().has_value() && peek().value().type == TokenType::semi)
-                {
                     take();
-                }
                 else
                 {
-                    std::cerr << "Expected ';'" << std::endl;
+                    std::cerr << "SyntaxError: Expected ';' on line " << peek(-1).value().line << std::endl;
                     exit(EXIT_FAILURE);
                 }
                 return NodeStmt{NodeInternal{ret}};
@@ -114,25 +117,46 @@ public:
                 NodeStmtVar stmt_var = {take(), type};
                 take(); // take '=' operator
                 if (auto expr = parse_expr())
-                {
                     stmt_var.expr = expr.value();
-                }
-                else
-                {
+                else {
                     std::cerr << "SyntaxError: Expected a value of type '" << type_string(stmt_var.type) << "' but got nothing" << std::endl;
+                    exit(EXIT_FAILURE);
                 }
                 if (!semicolon())
                 {
                     std::cerr << "SyntaxError: Expected ';' on line ";
-                    
-                    std::visit([](auto&& arg)
-                    { if constexpr(std::is_same_v<decltype(arg), NodeExprIdent>) {std::cout << arg.ident.line << std::endl;}
-                    else if constexpr(std::is_same_v<decltype(arg), NodeExprIInt>) { std::cout << arg.i_int.line << std::endl;}}
-                    , stmt_var.expr.var);
+
+                    std::visit([](auto &&arg)
+                               { if constexpr(std::is_same_v<decltype(arg), NodeExprIdent>) {std::cout << arg.ident.line << std::endl;}
+                    else if constexpr(std::is_same_v<decltype(arg), NodeExprIInt>) { std::cout << arg.i_int.line << std::endl;} }, stmt_var.expr.var);
 
                     exit(EXIT_FAILURE);
                 }
                 return NodeStmt{stmt_var};
+            }
+            else if (peek().value().type == TokenType::print && peek(1).value().type == TokenType::open_p)
+            {
+                take();
+                take();
+                NodeInternalPrintf stmt_prt = {};
+                if (auto expr = parse_expr())
+
+                    stmt_prt.print = expr.value();
+
+                if (peek().has_value() && peek().value().type == TokenType::close_p)
+                    take();
+                else{
+                    std::cerr << "SyntaxError: Expected ')' on line " << peek().value().line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                if (peek().has_value() && peek().value().type == TokenType::semi)
+                    take();
+                else {
+                    std::cerr << "SyntaxError: Expected ';' on line " << peek().value().line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                    
+                return NodeStmt{NodeInternal{stmt_prt}};
             }
         }
 
@@ -143,7 +167,7 @@ public:
     {
         NodeProg root;
         while (peek().has_value())
-        {   
+        {
             if (auto stmt = parse_stmt())
             {
                 root.stmts.push_back(stmt.value());
