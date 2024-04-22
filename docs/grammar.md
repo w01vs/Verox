@@ -36,8 +36,9 @@ $$
         \begin{cases}
             \text{int}
         \end{cases}\\
-    \text{}
-\end{align} \\
-    \text{For information on the types, see syntax.}\\
-    \text{Print can only be called once at this time.}\\
+    \text{}\\
+\end{align}
 $$
+
+For information on the types, see syntax.\
+Print can only be called once at this time.
