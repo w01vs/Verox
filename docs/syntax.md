@@ -9,8 +9,8 @@ Some parts of Velox
 ### Types
 * **int** = an unsigned 64-bit integer.
 
-### Builtin functions
-* **void print(int n)** = will put a raw string to the output console and append newline character.
+### Built-in functions
+* **void print(int n)** = will put a raw int to the output console and append newline character.
 
 ### Example syntaxes
 The following is the simplest program using all features available.
