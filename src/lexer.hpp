@@ -25,7 +25,7 @@ struct Token
     std::optional<std::string> val{};
 };
 
-void print_tokens(std::vector<Token> &tokens)
+inline void print_tokens(std::vector<Token> &tokens)
 {
     for (int i = 0; i < tokens.size(); i++)
     {
@@ -68,9 +68,9 @@ void print_tokens(std::vector<Token> &tokens)
 class Lexer
 {
 public:
-    explicit Lexer(std::string src) : src(src) {}
+    inline explicit Lexer(std::string src) : src(src) {}
 
-    std::vector<Token> to_tokens()
+    inline std::vector<Token> to_tokens()
     {
         std::vector<Token> tokens;
         std::string buf;
@@ -96,7 +96,7 @@ public:
         return tokens;
     }
 
-    bool keywords(std::vector<Token> &tokens, std::string &buf, int &lc)
+    inline bool keywords(std::vector<Token> &tokens, std::string &buf, int &lc)
     {
         if (std::isalpha(peek().value()))
         {
@@ -133,7 +133,7 @@ public:
         return false;
     }
 
-    bool digits(std::vector<Token> &tokens, std::string &buf, int &lc)
+    inline bool digits(std::vector<Token> &tokens, std::string &buf, int &lc)
     {
         if (std::isdigit(peek().value()))
         {
@@ -149,7 +149,7 @@ public:
         return false;
     }
 
-    bool symbols(std::vector<Token> &tokens, std::string &buf, int &lc)
+    inline bool symbols(std::vector<Token> &tokens, std::string &buf, int &lc)
     {
         if (peek().has_value() && peek().value() == ';')
         {
@@ -195,7 +195,7 @@ public:
     }
 
 private:
-    [[nodiscard]] std::optional<char> peek(const size_t offset = 0) const
+    inline [[nodiscard]] std::optional<char> peek(const size_t offset = 0) const
     {
         if (index + offset >= src.length())
         {
@@ -204,7 +204,7 @@ private:
         return src.at(index + offset);
     }
 
-    char take()
+    inline char take()
     {
         return src.at(index++);
     }

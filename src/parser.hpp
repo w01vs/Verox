@@ -20,26 +20,39 @@ struct NodeExprIdent
     Token ident; // var name
 };
 
+struct Term {
+    std::variant<NodeExprIdent*, NodeExprIInt*>;
+};
+
 struct NodeExpr
 {
-    std::variant<NodeExprIdent, NodeExprIInt> var;
+    std::variant<NodeExprIdent*, NodeExprIInt*, BinExpr*> var;
     std::optional<Type> type;
 };
 
+struct BinExprAdd {
+    NodeExpr* rhs;
+    NodeExpr* lhs;
+};
+
+struct BinExpr {
+    std::variant<BinExprAdd*> bexpr;
+}
+
 struct NodeInternalRet
 {
-    NodeExpr ret; // return val
+    NodeExpr* ret; // return val
 };
 
 struct NodeInternalPrintf
 {
-    NodeExpr print;
+    NodeExpr* print;
 };
 
 // internal 'functions' such as return and possibly print etc.
 struct NodeInternal
 {
-    std::variant<NodeInternalRet, NodeInternalPrintf> ret; // return
+    std::variant<NodeInternalRet*, NodeInternalPrintf*> ret; // return
 };
 
 // variable declaration with a type.
@@ -47,20 +60,20 @@ struct NodeStmtVar
 {
     Token ident; // var name
     Type type;
-    NodeExpr expr; // var value
+    NodeExpr* expr; // var value
 };
 
 struct NodeStmt
 {
-    std::variant<NodeInternal, NodeStmtVar> var; // Internal stuff or variable
+    std::variant<NodeInternal*, NodeStmtVar*> var; // Internal stuff or variable
 };
 
 struct NodeProg
 {
-    std::vector<NodeStmt> stmts; // All statements
+    std::vector<NodeStmt*> stmts; // All statements
 };
 
-std::string type_string(Type type)
+inline std::string type_string(Type type)
 {
     switch (type)
     {
@@ -74,14 +87,17 @@ std::string type_string(Type type)
 class Parser
 {
 public:
-    explicit Parser(std::vector<Token> tokens) : tokens(tokens) {}
+    inline explicit Parser(std::vector<Token> tokens) 
+    : tokens(tokens), arena(1024 * 1024 * 4) // 4 mb
+    {}
 
-    std::optional<NodeExpr> parse_expr()
+    inline std::optional<NodeExpr> parse_expr()
     {
         NodeExpr expr;
         if (peek().has_value() && peek().value().type == TokenType::i_int)
         {
-            return NodeExpr{NodeExprIInt{take()}, Type::_int};
+            auto temp = arena.allocate<NodeExprIInt>();
+            return NodeExpr{ NodeExprIInt{take()}, Type::_int};
         }
         else if (peek().has_value() && peek().value().type == TokenType::ident)
         {
@@ -90,7 +106,7 @@ public:
         return {};
     }
 
-    std::optional<NodeStmt> parse_stmt()
+    inline std::optional<NodeStmt> parse_stmt()
     {
         if (peek().has_value())
         {
@@ -167,7 +183,7 @@ public:
         return {};
     }
 
-    std::optional<NodeProg> parse()
+    inline std::optional<NodeProg> parse()
     {
         NodeProg root;
         while (peek().has_value())
@@ -186,7 +202,11 @@ public:
     }
 
 private:
-    [[nodiscard]] std::optional<Token> peek(const int offset = 0) const
+    std::vector<Token> tokens;
+    ArenaAllocator arena;
+    size_t index = 0;
+
+    inline [[nodiscard]] std::optional<Token> peek(const int offset = 0) const
     {
         if (index + offset >= tokens.size())
         {
@@ -196,12 +216,12 @@ private:
         return tokens.at(index + offset);
     }
 
-    Token take()
+    inline Token take()
     {
         return tokens.at(index++);
     }
 
-    Type get_type(Token token)
+    inline Type get_type(Token token)
     {
         if (token.val.has_value() && token.val.value() == "int")
         {
@@ -210,7 +230,7 @@ private:
         return Type::undefined;
     }
 
-    bool semicolon()
+    inline bool semicolon()
     {
         if (peek().has_value() && peek().value().type == TokenType::semi)
         {
@@ -219,6 +239,4 @@ private:
         }
         return false;
     }
-    std::vector<Token> tokens;
-    size_t index = 0;
 };
