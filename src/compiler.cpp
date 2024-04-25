@@ -4,6 +4,7 @@
 #include <sstream>
 #include <vector>
 
+#include  "arena.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
 #include "codegen.hpp"

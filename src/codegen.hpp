@@ -1,3 +1,4 @@
+#pragma once
 #include "parser.hpp"
 #include <sstream>
 #include <unordered_map>
@@ -38,7 +39,7 @@ public:
         return data.str();
     }
 
-    void gen_stmt(const NodeStmt &stmt)
+    void gen_stmt(const NodeStmt &  stmt)
     {
         struct StmtVisitor
         {
@@ -134,6 +135,7 @@ public:
     void gen_internal(const NodeInternal &internal)
     {
         struct InternalVisitor
+
         {
             Generator *const gen;
             void operator()(const NodeInternalRet &ret) const
