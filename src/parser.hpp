@@ -93,14 +93,16 @@ public:
 
     inline std::optional<NodeExpr*> parse_expr()
     {
-        if (peek().has_value() && peek().value().type == TokenType::i_int)
+        if (auto i_int = try_take(TokenType::i_int))
         {
-            auto expr = arena.emplace<NodeExpr>(NodeExprIInt{take()}, Type::_int);
+            auto int_expr = arena.emplace<NodeExprIInt>(i_int.value());
+            auto expr = arena.emplace<NodeExpr>(int_expr, Type::_int);
             return expr;
         }
         else if (peek().has_value() && peek().value().type == TokenType::ident)
         {
-            auto expr = arena.emplace<NodeExpr>(NodeExprIdent{take()});
+            auto ident_expr = arena.emplace<NodeExprIdent>(take());
+            auto expr = arena.emplace<NodeExpr>(ident_expr);
             return expr;
         }
         return {};
@@ -125,7 +127,8 @@ public:
                     std::cerr << "SyntaxError: Expected ';' on line " << peek(-1).value().line << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                return arena.emplace<NodeStmt>(NodeInternal{ret});
+                auto internal_expr = arena.emplace<NodeInternal>(ret);
+                return arena.emplace<NodeStmt>(internal_expr);
             }
             else if (peek().value().type == TokenType::type && peek(1).has_value() && peek(1).value().type == TokenType::ident && peek(2).has_value() && peek(2).value().type == TokenType::assign)
             {
@@ -173,8 +176,8 @@ public:
                     std::cerr << "SyntaxError: Expected ';' on line " << peek().value().line << std::endl;
                     exit(EXIT_FAILURE);
                 }
-
-                return arena.emplace<NodeStmt>(NodeInternal{stmt_prt});
+                auto internal_expr = arena.emplace<NodeInternal>(stmt_prt);
+                return arena.emplace<NodeStmt>(internal_expr);
             }
         }
 
@@ -236,5 +239,10 @@ private:
             return true;
         }
         return false;
+    }
+
+    inline std::optional<Token> try_take(const TokenType token) {
+        if(peek().has_value() && peek().value().type == token) return take();
+        return { };
     }
 };
