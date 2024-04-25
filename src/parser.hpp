@@ -21,7 +21,7 @@ struct NodeExprIdent
 };
 
 struct Term {
-    std::variant<NodeExprIdent*, NodeExprIInt*>;
+    std::variant<NodeExprIdent*, NodeExprIInt*> t;
 };
 
 struct NodeExpr
@@ -37,7 +37,7 @@ struct BinExprAdd {
 
 struct BinExpr {
     std::variant<BinExprAdd*> bexpr;
-}
+};
 
 struct NodeInternalRet
 {
@@ -91,32 +91,32 @@ public:
     : tokens(tokens), arena(1024 * 1024 * 4) // 4 mb
     {}
 
-    inline std::optional<NodeExpr> parse_expr()
+    inline std::optional<NodeExpr*> parse_expr()
     {
-        NodeExpr expr;
         if (peek().has_value() && peek().value().type == TokenType::i_int)
         {
-            auto temp = arena.allocate<NodeExprIInt>();
-            return NodeExpr{ NodeExprIInt{take()}, Type::_int};
+            auto expr = arena.emplace<NodeExpr>(NodeExprIInt{take()}, Type::_int);
+            return expr;
         }
         else if (peek().has_value() && peek().value().type == TokenType::ident)
         {
-            return NodeExpr{NodeExprIdent{take()}};
+            auto expr = arena.emplace<NodeExpr>(NodeExprIdent{take()});
+            return expr;
         }
         return {};
     }
 
-    inline std::optional<NodeStmt> parse_stmt()
+    inline std::optional<NodeStmt*> parse_stmt()
     {
         if (peek().has_value())
         {
             if (peek().value().type == TokenType::ret)
             {
                 take();
-                NodeInternalRet ret;
+                auto ret = arena.emplace<NodeInternalRet>();
                 if (auto expr = parse_expr())
                 {
-                    ret = {expr.value()};
+                    ret->ret = expr.value();
                 }
                 if (peek().has_value() && peek().value().type == TokenType::semi)
                     take();
@@ -125,18 +125,18 @@ public:
                     std::cerr << "SyntaxError: Expected ';' on line " << peek(-1).value().line << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                return NodeStmt{NodeInternal{ret}};
+                return arena.emplace<NodeStmt>(NodeInternal{ret});
             }
             else if (peek().value().type == TokenType::type && peek(1).has_value() && peek(1).value().type == TokenType::ident && peek(2).has_value() && peek(2).value().type == TokenType::assign)
             {
                 Type type = get_type(take());
-                NodeStmtVar stmt_var = {take(), type};
+                auto stmt_var = arena.emplace<NodeStmtVar>(take(), type);
                 take(); // take '=' operator
                 if (auto expr = parse_expr())
-                    stmt_var.expr = expr.value();
+                    stmt_var->expr = expr.value();
                 else
                 {
-                    std::cerr << "SyntaxError: Expected a value of type '" << type_string(stmt_var.type) << "' but got nothing" << std::endl;
+                    std::cerr << "SyntaxError: Expected a value of type '" << type_string(stmt_var->type) << "' but got nothing" << std::endl;
                     exit(EXIT_FAILURE);
                 }
                 if (!semicolon())
@@ -144,23 +144,21 @@ public:
                     std::cerr << "SyntaxError: Expected ';' on line ";
 
                     std::visit([](auto &&arg)
-                               { if constexpr(std::is_same_v<decltype(arg), NodeExprIdent>) {std::cout << arg.ident.line << std::endl;}
-                    else if constexpr(std::is_same_v<decltype(arg), NodeExprIInt>) { std::cout << arg.i_int.line << std::endl;} },
-                               stmt_var.expr.var);
+                               { if constexpr(std::is_same_v<decltype(arg), NodeExprIdent*>) {std::cout << arg.ident.line << std::endl;}
+                    else if constexpr(std::is_same_v<decltype(arg), NodeExprIInt*>) { std::cout << arg.i_int.line << std::endl;} },
+                               stmt_var->expr->var);
 
                     exit(EXIT_FAILURE);
                 }
-                return NodeStmt{stmt_var};
+                return arena.emplace<NodeStmt>(stmt_var);
             }
             else if (peek().value().type == TokenType::print && peek(1).value().type == TokenType::open_p)
             {
                 take();
                 take();
-                NodeInternalPrintf stmt_prt = {};
+                auto stmt_prt = arena.emplace<NodeInternalPrintf>();
                 if (auto expr = parse_expr())
-
-                    stmt_prt.print = expr.value();
-
+                    stmt_prt->print = expr.value();
                 if (peek().has_value() && peek().value().type == TokenType::close_p)
                     take();
                 else
@@ -176,7 +174,7 @@ public:
                     exit(EXIT_FAILURE);
                 }
 
-                return NodeStmt{NodeInternal{stmt_prt}};
+                return arena.emplace<NodeStmt>(NodeInternal{stmt_prt});
             }
         }
 

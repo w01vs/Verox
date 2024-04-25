@@ -19,7 +19,7 @@ std::string print_type(Type type)
 class Generator
 {
 public:
-    explicit Generator(NodeProg root) : root(root) {}
+    explicit Generator(const NodeProg* root) : root(root) {}
 
     std::string gen_prog()
     {
@@ -28,9 +28,9 @@ public:
         push("rbp");
         code << "    mov rbp, rsp\n\n";
         data << "section .data\n";
-        for (int i = 0; i < root.stmts.size(); i++)
+        for (int i = 0; i < root->stmts.size(); i++)
         {
-            gen_stmt(root.stmts[i]);
+            gen_stmt(root->stmts.at(i));
         }
         if (!internals_called.at("ret"))
             gen_ret();
@@ -39,85 +39,85 @@ public:
         return data.str();
     }
 
-    void gen_stmt(const NodeStmt &  stmt)
+    void gen_stmt(const NodeStmt* stmt)
     {
         struct StmtVisitor
         {
             Generator *const gen;
-            void operator()(const NodeInternal &internal) const
+            void operator()(const NodeInternal* internal) const
             {
                 gen->gen_internal(internal);
             }
 
-            void operator()(const NodeStmtVar &var) const
+            void operator()(const NodeStmtVar* var) const
             {
-                if (gen->vars.contains(var.ident.val.value()))
+                if (gen->vars.contains(var->ident.val.value()))
                 {
-                    std::cerr << "Error: Identifier '" << var.ident.val.value() << "' has already been declared on line " << gen->vars.at(var.ident.val.value()).line << ", but was declared again on line " << var.ident.line << std::endl;
+                    std::cerr << "Error: Identifier '" << var->ident.val.value() << "' has already been declared on line " << gen->vars.at(var->ident.val.value()).line << ", but was declared again on line " << var->ident.line << std::endl;
                     exit(EXIT_FAILURE);
                 }
 
                 struct ExprVisitor
                 {
                     Generator *const gen;
-                    const NodeStmtVar var;
-                    void operator()(const NodeExprIdent &ident) const
+                    const NodeStmtVar* var;
+                    void operator()(const NodeExprIdent* ident) const
                     {
-                        const auto temp = ident.ident.val.value();
+                        const auto temp = ident->ident.val.value();
                         if (!gen->vars.contains(temp))
                         {
-                            std::cerr << "Error: Undeclared identifier '" << ident.ident.val.value() << "' on line " << ident.ident.line << std::endl;
+                            std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
                             exit(EXIT_FAILURE);
                         }
                         else
                         {
-                            if (gen->vars.at(temp).type == var.type)
+                            if (gen->vars.at(temp).type == var->type)
                             {
-                                gen->vars.insert({var.ident.val.value(), Var{gen->sp, var.type, var.ident.line}});
-                                gen->gen_expr(var.expr);
+                                gen->vars.insert({var->ident.val.value(), Var{gen->sp, var->type, var->ident.line}});
+                                gen->gen_expr(var->expr);
                             }
                             else
                             {
-                                std::cerr << "TypeError: expected " << type_string(var.type) << " but got " << type_string(gen->vars.at(temp).type) << std::endl;
+                                std::cerr << "TypeError: expected " << type_string(var->type) << " but got " << type_string(gen->vars.at(temp).type) << std::endl;
                             }
                         }
                     }
-                    void operator()(const NodeExprIInt &i_int) const
+                    void operator()(const NodeExprIInt* i_int) const
                     {
-                        gen->vars.insert({var.ident.val.value(), Var{gen->sp, var.type, i_int.i_int.line}});
-                        gen->gen_expr(var.expr);
+                        gen->vars.insert({var->ident.val.value(), Var{gen->sp, var->type, i_int->i_int.line}});
+                        gen->gen_expr(var->expr);
                     }
                 };
 
                 ExprVisitor visitor{gen, var};
-                std::visit(visitor, var.expr.var);
+                std::visit(visitor, var->expr->var);
             }
         };
 
         StmtVisitor visitor{this};
-        std::visit(visitor, stmt.var);
+        std::visit(visitor, stmt->var);
     }
 
-    std::string gen_expr(const NodeExpr &expr)
+    std::string gen_expr(const NodeExpr* expr)
     {
         struct ExprVisitor
         {
             Generator *const gen;
             bool eval;
-            std::string operator()(const NodeExprIdent &ident) const
+            std::string operator()(const NodeExprIdent* ident) const
             {
-                if (!gen->vars.contains(ident.ident.val.value()))
+                if (!gen->vars.contains(ident->ident.val.value()))
                 {
-                    std::cerr << "Error: Undeclared identifier '" << ident.ident.val.value() << "' on line " << ident.ident.line << std::endl;
+                    std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                const auto &var = gen->vars.at(ident.ident.val.value());
+                const auto &var = gen->vars.at(ident->ident.val.value());
                 std::stringstream offset;
                 offset << "QWORD [rsp + " << (gen->sp - var.stackl - 1) * 8 << "]";
                 gen->push(offset.str());
                 gen->code << "\n";
 
-                return ident.ident.val.value();
+                return ident->ident.val.value();
             }
             std::string operator()(const NodeExprIInt &i_int) const
             {
@@ -129,20 +129,20 @@ public:
         };
 
         ExprVisitor visitor{this};
-        return std::visit(visitor, expr.var);
+        return std::visit(visitor, expr->var);
     }
 
-    void gen_internal(const NodeInternal &internal)
+    void gen_internal(const NodeInternal* internal)
     {
         struct InternalVisitor
 
         {
             Generator *const gen;
-            void operator()(const NodeInternalRet &ret) const
+            void operator()(const NodeInternalRet* ret) const
             {
                 if (!gen->internals_called.contains("ret"))
                     gen->internals_called.insert({"ret", true});
-                gen->gen_expr(ret.ret);
+                gen->gen_expr(ret->ret);
                 gen->pop("rdi");
                 if (gen->sp % 2 != 0)
                     gen->code << "    add rsp, " << (gen->sp) * 8 << "\n";
@@ -154,7 +154,7 @@ public:
                 gen->code << "    syscall\n";
                 gen->code << "\n";
             }
-            void operator()(const NodeInternalPrintf &print) const
+            void operator()(const NodeInternalPrintf* print) const
             {
                 if (!gen->internals_called.contains("puts"))
                 {
@@ -162,7 +162,7 @@ public:
                     gen->ext << "extern puts\n";
                     gen->ext << "\n";
                 }
-                gen->data << "    s" << gen->str_count++ << " db \"" << gen->gen_expr(print.print) << "\",0\n";
+                gen->data << "    s" << gen->str_count++ << " db \"" << gen->gen_expr(print->print) << "\",0\n";
 
                 gen->code << "    lea rdi, [s0]\n";
                 if (gen->sp % 2 != 0)
@@ -173,11 +173,11 @@ public:
         };
 
         InternalVisitor visitor{this};
-        std::visit(visitor, internal.ret);
+        std::visit(visitor, internal->ret);
     }
 
 private:
-    const NodeProg root;
+    const NodeProg* root;
     std::stringstream code;
     std::stringstream ext;
     std::stringstream data;
