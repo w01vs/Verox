@@ -1,5 +1,5 @@
 ## Syntax
-Some parts of Velox
+Some parts of Verox
 
 ### Operators
 * **;**
