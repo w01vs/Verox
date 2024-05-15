@@ -24,6 +24,8 @@ struct Term {
     std::variant<NodeExprIdent*, NodeExprIInt*> t;
 };
 
+struct BinExpr;
+
 struct NodeExpr
 {
     std::variant<NodeExprIdent*, NodeExprIInt*, BinExpr*> var;
@@ -184,20 +186,22 @@ public:
         return {};
     }
 
-    inline std::optional<NodeProg> parse()
+    inline std::optional<NodeProg*> parse()
     {
-        NodeProg root;
+        NodeProg* root = arena.emplace<NodeProg>();
+        int i = 1;
         while (peek().has_value())
         {
             if (auto stmt = parse_stmt())
             {
-                root.stmts.push_back(stmt.value());
+                root->stmts.push_back(stmt.value());
             }
             else
             {
                 std::cerr << "Invalid statement" << std::endl;
                 exit(EXIT_FAILURE);
             }
+            i++;
         }
         return root;
     }
@@ -207,7 +211,7 @@ private:
     ArenaAllocator arena;
     size_t index = 0;
 
-    inline [[nodiscard]] std::optional<Token> peek(const int offset = 0) const
+    inline std::optional<Token> peek(const int offset = 0) const
     {
         if (index + offset >= tokens.size())
         {

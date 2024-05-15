@@ -195,7 +195,7 @@ public:
     }
 
 private:
-    inline [[nodiscard]] std::optional<char> peek(const size_t offset = 0) const
+    inline std::optional<char> peek(const size_t offset = 0) const
     {
         if (index + offset >= src.length())
         {

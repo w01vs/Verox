@@ -2,6 +2,7 @@
 #include "parser.hpp"
 #include <sstream>
 #include <unordered_map>
+#include <string>
 
 std::string print_type(Type type)
 {
@@ -87,6 +88,11 @@ public:
                         gen->vars.insert({var->ident.val.value(), Var{gen->sp, var->type, i_int->i_int.line}});
                         gen->gen_expr(var->expr);
                     }
+
+                    void operator()(const BinExpr* binexpr) const
+                    {
+                        
+                    }
                 };
 
                 ExprVisitor visitor{gen, var};
@@ -119,12 +125,17 @@ public:
 
                 return ident->ident.val.value();
             }
-            std::string operator()(const NodeExprIInt &i_int) const
+                
+            std::string operator()(const NodeExprIInt* i_int) const
             {
-                gen->code << "    mov rax, " << i_int.i_int.val.value() << "\n";
+                gen->code << "    mov rax, " << i_int->i_int.val.value() << "\n";
                 gen->push("rax");
                 gen->code << "\n";
-                return i_int.i_int.val.value();
+                return i_int->i_int.val.value();
+            }
+            std::string operator()(const BinExpr* binexpr) const 
+            {
+                return "";
             }
         };
 
@@ -162,13 +173,34 @@ public:
                     gen->ext << "extern puts\n";
                     gen->ext << "\n";
                 }
-                gen->data << "    s" << gen->str_count++ << " db \"" << gen->gen_expr(print->print) << "\",0\n";
+                
+                // TODO: PRINTED NODEEXPR DOESNT HAVE TYPE
+                if(print->print->type.has_value()) {
+                    std::cout << "print" << std::endl;
+                        // Find variable on the stack and print it
+                    if(print->print->type.value() == Type::_int) {
+                        gen->gen_expr(print->print);
+                        gen->pop("rdi");
+                        if (gen->sp % 2 != 0)
+                            gen->code << "    sub rsp, 8\n";
+                        gen->code << "    call puts\n";
+                        gen->code << "\n";
+                        return;
+                    }
+                    else{
+                        auto g = gen->gen_expr(print->print);
+                        std::cout << g << std::endl;
+                        gen->data << "    s" << gen->str_count++ << " db \"" << g << "\",0\n";
 
-                gen->code << "    lea rdi, [s0]\n";
-                if (gen->sp % 2 != 0)
-                    gen->code << "    sub rsp, 8\n";
-                gen->code << "    call puts\n";
-                gen->code << "\n";
+                        gen->code << "    lea rdi, [s" << gen->str_count - 1 << "]\n";
+                        if (gen->sp % 2 != 0)
+                            gen->code << "    sub rsp, 8\n";
+                        gen->code << "    call puts\n";
+                        gen->code << "\n";
+                    }
+                    
+                }
+                
             }
         };
 

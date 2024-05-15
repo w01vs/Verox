@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     std::vector<Token> t = lexer.to_tokens();
 
     Parser parser(t);
-    std::optional<NodeProg> tree = parser.parse();
+    std::optional<NodeProg*> tree = parser.parse();
 
     if (!tree.has_value())
     {

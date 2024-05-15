@@ -1,5 +1,9 @@
 #pragma once
 
+#include <memory>
+#include <cstddef>
+#include <utility>
+
 class ArenaAllocator
 {
 public:
@@ -19,19 +23,20 @@ public:
 
     template<typename T>
     inline T* alloc() {
-        size_t remainder = (size_t) (m_offset - m_buffer);
-        const auto aligned = std::align(alignof(T), sizeof(T),(void*) offset, remainder);
+        size_t remainder = size - (size_t) (offset - buffer);
+        auto pointer = (void*)offset;
+        const auto aligned = std::align(alignof(T), sizeof(T), pointer, remainder);
         if (aligned == nullptr) {
             throw std::bad_alloc {};
         }
-        offset += (std::byte*)(aligned) + sizeof(T);
+        offset = (std::byte*)(aligned) + sizeof(T);
         return (T*)aligned;
     }
 
     template <typename T, typename... Args>
     [[nodiscard]] inline T* emplace(Args&&... args) {
         const auto allocated = alloc<T>();
-        return new allocated T { std::forward<Args>(args)};
+        return new (allocated) T { std::forward<Args>(args)... };
     }
 private:
     size_t size;
