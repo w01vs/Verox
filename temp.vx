@@ -1,4 +1,4 @@
 int x = 9;
-int y = 9;
+int y = 7;
 print(x);
 return x;

@@ -6,7 +6,6 @@
 #include <iostream>
 #include <variant>
 
-
 enum class Type { undefined, _int };
 
 struct NodeExprIInt {
@@ -147,7 +146,8 @@ class Parser {
                     std::cerr << "SyntaxError: Expected ';' on line ";
 
                     std::visit(
-                        [](auto &&arg) {
+                        [](auto &&arg)
+                        {
                             if constexpr(std::is_same_v<decltype(arg),
                                                         NodeExprIdent *>)
                             {

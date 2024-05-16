@@ -10,8 +10,6 @@
 
 int main(int argc, char *argv[])
 {
-    int x = 5;
-    std::cout << 5 + x << std::endl;
     if(argc != 2)
     {
         std::cerr << "Error: Requires an input file " << std::endl;
@@ -55,8 +53,7 @@ int main(int argc, char *argv[])
     // usr/bin/ld " + path + "out.o -o " + path + "out"; std::cout << command <<
     // std::endl; system(command.c_str());
     system("nasm -felf64 verox.asm");
-    system("ld -o verox verox.o -L/lib/x86_64-linux-gnu -lc --dynamic-linker "
-           "/lib64/ld-linux-x86-64.so.2");
+    system("gcc -o verox verox.o -lc");
 
     return EXIT_SUCCESS;
 }
