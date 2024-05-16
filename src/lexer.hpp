@@ -1,11 +1,12 @@
-#pragma once
+#ifndef LEXER_HPP
+#define LEXER_HPP
 
+#include <iostream>
+#include <optional>
 #include <string>
 #include <vector>
-#include <optional>
 
-enum class TokenType
-{
+enum class TokenType {
     ret,     // return -> internal
     i_int,   // immediate int
     semi,    // semicolon
@@ -18,8 +19,7 @@ enum class TokenType
     add      // '+'
 };
 
-struct Token
-{
+struct Token {
     TokenType type;
     int line;
     std::optional<std::string> val{};
@@ -27,10 +27,10 @@ struct Token
 
 inline void print_tokens(std::vector<Token> &tokens)
 {
-    for (int i = 0; i < tokens.size(); i++)
+    for(int i = 0; i < tokens.size(); i++)
     {
         std::cout << "Next token: " << std::endl;
-        switch (tokens[i].type)
+        switch(tokens[i].type)
         {
         case TokenType::i_int:
             std::cout << "i_int: " << tokens[i].val.value() << std::endl;
@@ -65,9 +65,8 @@ inline void print_tokens(std::vector<Token> &tokens)
     }
 }
 
-class Lexer
-{
-public:
+class Lexer {
+  public:
     inline explicit Lexer(std::string src) : src(src) {}
 
     inline std::vector<Token> to_tokens()
@@ -75,17 +74,11 @@ public:
         std::vector<Token> tokens;
         std::string buf;
         int lc = 1;
-        while (peek().has_value())
+        while(peek().has_value())
         {
-            if (keywords(tokens, buf, lc))
-            {
-            }
-            else if (digits(tokens, buf, lc))
-            {
-            }
-            else if (symbols(tokens, buf, lc))
-            {
-            }
+            if(keywords(tokens, buf, lc)) {}
+            else if(digits(tokens, buf, lc)) {}
+            else if(symbols(tokens, buf, lc)) {}
             else
             {
                 std::cerr << "dude what the fuck is that" << std::endl;
@@ -98,26 +91,26 @@ public:
 
     inline bool keywords(std::vector<Token> &tokens, std::string &buf, int &lc)
     {
-        if (std::isalpha(peek().value()))
+        if(std::isalpha(peek().value()))
         {
             buf.push_back(take());
-            while (peek().has_value() && std::isalnum(peek().value()))
+            while(peek().has_value() && std::isalnum(peek().value()))
             {
                 buf.push_back(take());
             }
-            if (buf == "return")
+            if(buf == "return")
             {
                 tokens.push_back({TokenType::ret, lc});
                 buf.clear();
                 return true;
             }
-            else if (buf == "int")
+            else if(buf == "int")
             {
                 tokens.push_back({TokenType::type, lc, buf});
                 buf.clear();
                 return true;
             }
-            else if (buf == "print")
+            else if(buf == "print")
             {
                 tokens.push_back({TokenType::print, lc});
                 buf.clear();
@@ -135,10 +128,10 @@ public:
 
     inline bool digits(std::vector<Token> &tokens, std::string &buf, int &lc)
     {
-        if (std::isdigit(peek().value()))
+        if(std::isdigit(peek().value()))
         {
             buf.push_back(take());
-            while (peek().has_value() && std::isdigit(peek().value()))
+            while(peek().has_value() && std::isdigit(peek().value()))
             {
                 buf.push_back(take());
             }
@@ -151,42 +144,43 @@ public:
 
     inline bool symbols(std::vector<Token> &tokens, std::string &buf, int &lc)
     {
-        if (peek().has_value() && peek().value() == ';')
+        if(peek().has_value() && peek().value() == ';')
         {
             take();
             tokens.push_back({TokenType::semi, lc});
             return true;
         }
-        else if (peek().has_value() && peek().value() == '=')
+        else if(peek().has_value() && peek().value() == '=')
         {
             take();
             tokens.push_back({TokenType::assign, lc});
             return true;
         }
-        else if (peek().has_value() && peek().value() == '\n')
+        else if(peek().has_value() && peek().value() == '\n')
         {
             take();
             lc++;
             return true;
         }
-        else if (peek().has_value() && peek().value() == '(')
+        else if(peek().has_value() && peek().value() == '(')
         {
             take();
             tokens.push_back({TokenType::open_p, lc});
             return true;
         }
-        else if (peek().has_value() && peek().value() == ')')
+        else if(peek().has_value() && peek().value() == ')')
         {
             take();
             tokens.push_back({TokenType::close_p, lc});
             return true;
         }
-        else if (peek().has_value() && std::isspace(peek().value()))
+        else if(peek().has_value() && std::isspace(peek().value()))
         {
             take();
             return true;
         }
-        else if(peek().has_value() && peek().value() == '+') {
+        else if(peek().has_value() && peek().value() == '+')
+        {
             take();
             tokens.push_back({TokenType::add, lc});
             return true;
@@ -194,21 +188,20 @@ public:
         return false;
     }
 
-private:
+  private:
     inline std::optional<char> peek(const size_t offset = 0) const
     {
-        if (index + offset >= src.length())
+        if(index + offset >= src.length())
         {
             return {};
         }
         return src.at(index + offset);
     }
 
-    inline char take()
-    {
-        return src.at(index++);
-    }
+    inline char take() { return src.at(index++); }
 
     const std::string src;
     size_t index = 0;
 };
+
+#endif // LEXER_HPP

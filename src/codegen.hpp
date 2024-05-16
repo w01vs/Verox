@@ -1,12 +1,14 @@
-#pragma once
+#ifndef CODEGEN_HPP
+#define CODEGEN_HPP
+
 #include "parser.hpp"
 #include <sstream>
-#include <unordered_map>
 #include <string>
+#include <unordered_map>
 
 std::string print_type(Type type)
 {
-    switch (type)
+    switch(type)
     {
     case Type::_int:
         return "int";
@@ -17,10 +19,9 @@ std::string print_type(Type type)
     }
 }
 
-class Generator
-{
-public:
-    explicit Generator(const NodeProg* root) : root(root) {}
+class Generator {
+  public:
+    explicit Generator(const NodeProg *root) : root(root) {}
 
     std::string gen_prog()
     {
@@ -29,70 +30,80 @@ public:
         push("rbp");
         code << "    mov rbp, rsp\n\n";
         data << "section .data\n";
-        for (int i = 0; i < root->stmts.size(); i++)
+        for(int i = 0; i < root->stmts.size(); i++)
         {
             gen_stmt(root->stmts.at(i));
         }
-        if (!internals_called.at("ret"))
+        if(!internals_called.at("ret"))
             gen_ret();
         data << "\n";
         data << ext.str() << code.str();
         return data.str();
     }
 
-    void gen_stmt(const NodeStmt* stmt)
+    void gen_stmt(const NodeStmt *stmt)
     {
-        struct StmtVisitor
-        {
+        struct StmtVisitor {
             Generator *const gen;
-            void operator()(const NodeInternal* internal) const
+            void operator()(const NodeInternal *internal) const
             {
                 gen->gen_internal(internal);
             }
 
-            void operator()(const NodeStmtVar* var) const
+            void operator()(const NodeStmtVar *var) const
             {
-                if (gen->vars.contains(var->ident.val.value()))
+                if(gen->vars.contains(var->ident.val.value()))
                 {
-                    std::cerr << "Error: Identifier '" << var->ident.val.value() << "' has already been declared on line " << gen->vars.at(var->ident.val.value()).line << ", but was declared again on line " << var->ident.line << std::endl;
+                    std::cerr << "Error: Identifier '" << var->ident.val.value()
+                              << "' has already been declared on line "
+                              << gen->vars.at(var->ident.val.value()).line
+                              << ", but was declared again on line "
+                              << var->ident.line << std::endl;
                     exit(EXIT_FAILURE);
                 }
 
-                struct ExprVisitor
-                {
+                struct ExprVisitor {
                     Generator *const gen;
-                    const NodeStmtVar* var;
-                    void operator()(const NodeExprIdent* ident) const
+                    const NodeStmtVar *var;
+                    void operator()(const NodeExprIdent *ident) const
                     {
                         const auto temp = ident->ident.val.value();
-                        if (!gen->vars.contains(temp))
+                        if(!gen->vars.contains(temp))
                         {
-                            std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
+                            std::cerr << "Error: Undeclared identifier '"
+                                      << ident->ident.val.value()
+                                      << "' on line " << ident->ident.line
+                                      << std::endl;
                             exit(EXIT_FAILURE);
                         }
                         else
                         {
-                            if (gen->vars.at(temp).type == var->type)
+                            if(gen->vars.at(temp).type == var->type)
                             {
-                                gen->vars.insert({var->ident.val.value(), Var{gen->sp, var->type, var->ident.line}});
+                                gen->vars.insert(
+                                    {var->ident.val.value(),
+                                     Var{gen->sp, var->type, var->ident.line}});
                                 gen->gen_expr(var->expr);
                             }
                             else
                             {
-                                std::cerr << "TypeError: expected " << type_string(var->type) << " but got " << type_string(gen->vars.at(temp).type) << std::endl;
+                                std::cerr
+                                    << "TypeError: expected "
+                                    << type_string(var->type) << " but got "
+                                    << type_string(gen->vars.at(temp).type)
+                                    << std::endl;
                             }
                         }
                     }
-                    void operator()(const NodeExprIInt* i_int) const
+                    void operator()(const NodeExprIInt *i_int) const
                     {
-                        gen->vars.insert({var->ident.val.value(), Var{gen->sp, var->type, i_int->i_int.line}});
+                        gen->vars.insert(
+                            {var->ident.val.value(),
+                             Var{gen->sp, var->type, i_int->i_int.line}});
                         gen->gen_expr(var->expr);
                     }
 
-                    void operator()(const BinExpr* binexpr) const
-                    {
-                        
-                    }
+                    void operator()(const BinExpr *binexpr) const {}
                 };
 
                 ExprVisitor visitor{gen, var};
@@ -104,58 +115,56 @@ public:
         std::visit(visitor, stmt->var);
     }
 
-    std::string gen_expr(const NodeExpr* expr)
+    std::string gen_expr(const NodeExpr *expr)
     {
-        struct ExprVisitor
-        {
+        struct ExprVisitor {
             Generator *const gen;
             bool eval;
-            std::string operator()(const NodeExprIdent* ident) const
+            std::string operator()(const NodeExprIdent *ident) const
             {
-                if (!gen->vars.contains(ident->ident.val.value()))
+                if(!gen->vars.contains(ident->ident.val.value()))
                 {
-                    std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
+                    std::cerr << "Error: Undeclared identifier '"
+                              << ident->ident.val.value() << "' on line "
+                              << ident->ident.line << std::endl;
                     exit(EXIT_FAILURE);
                 }
                 const auto &var = gen->vars.at(ident->ident.val.value());
                 std::stringstream offset;
-                offset << "QWORD [rsp + " << (gen->sp - var.stackl - 1) * 8 << "]";
+                offset << "QWORD [rsp + " << (gen->sp - var.stackl - 1) * 8
+                       << "]";
                 gen->push(offset.str());
                 gen->code << "\n";
 
                 return ident->ident.val.value();
             }
-                
-            std::string operator()(const NodeExprIInt* i_int) const
+
+            std::string operator()(const NodeExprIInt *i_int) const
             {
-                gen->code << "    mov rax, " << i_int->i_int.val.value() << "\n";
+                gen->code << "    mov rax, " << i_int->i_int.val.value()
+                          << "\n";
                 gen->push("rax");
                 gen->code << "\n";
                 return i_int->i_int.val.value();
             }
-            std::string operator()(const BinExpr* binexpr) const 
-            {
-                return "";
-            }
+            std::string operator()(const BinExpr *binexpr) const { return ""; }
         };
 
         ExprVisitor visitor{this};
         return std::visit(visitor, expr->var);
     }
 
-    void gen_internal(const NodeInternal* internal)
+    void gen_internal(const NodeInternal *internal)
     {
-        struct InternalVisitor
-
-        {
+        struct InternalVisitor {
             Generator *const gen;
-            void operator()(const NodeInternalRet* ret) const
+            void operator()(const NodeInternalRet *ret) const
             {
-                if (!gen->internals_called.contains("ret"))
+                if(!gen->internals_called.contains("ret"))
                     gen->internals_called.insert({"ret", true});
                 gen->gen_expr(ret->ret);
                 gen->pop("rdi");
-                if (gen->sp % 2 != 0)
+                if(gen->sp % 2 != 0)
                     gen->code << "    add rsp, " << (gen->sp) * 8 << "\n";
                 else
                     gen->code << "    add rsp, " << (gen->sp - 1) * 8 << "\n";
@@ -165,42 +174,61 @@ public:
                 gen->code << "    syscall\n";
                 gen->code << "\n";
             }
-            void operator()(const NodeInternalPrintf* print) const
+            void operator()(const NodeInternalPrintf *print) const
             {
-                if (!gen->internals_called.contains("puts"))
+                if(!gen->internals_called.contains("puts"))
                 {
                     gen->internals_called.insert({"puts", true});
                     gen->ext << "extern puts\n";
                     gen->ext << "\n";
                 }
-                
-                // TODO: PRINTED NODEEXPR DOESNT HAVE TYPE
-                if(print->print->type.has_value()) {
+                struct ExprVisitor {
+                    Generator const *gen;
+                    bool operator()(const NodeExprIdent *ident) const
+                    {
+                        return true;
+                    }
+                    bool operator()(const NodeExprIInt *i_int) const
+                    {
+                        return false;
+                    }
+                    bool operator()(const BinExpr *binexpr) const
+                    {
+                        return false;
+                    }
+                };
+
+                const bool is_ident =
+                    std::visit(ExprVisitor{gen}, print->print->var);
+                if(is_ident)
+                {
                     std::cout << "print" << std::endl;
-                        // Find variable on the stack and print it
-                    if(print->print->type.value() == Type::_int) {
+                    // Find variable on the stack and print it
+                    if(print->print->type.value() == Type::_int)
+                    {
                         gen->gen_expr(print->print);
                         gen->pop("rdi");
-                        if (gen->sp % 2 != 0)
+                        if(gen->sp % 2 != 0)
                             gen->code << "    sub rsp, 8\n";
                         gen->code << "    call puts\n";
                         gen->code << "\n";
                         return;
                     }
-                    else{
-                        auto g = gen->gen_expr(print->print);
-                        std::cout << g << std::endl;
-                        gen->data << "    s" << gen->str_count++ << " db \"" << g << "\",0\n";
-
-                        gen->code << "    lea rdi, [s" << gen->str_count - 1 << "]\n";
-                        if (gen->sp % 2 != 0)
-                            gen->code << "    sub rsp, 8\n";
-                        gen->code << "    call puts\n";
-                        gen->code << "\n";
-                    }
-                    
                 }
-                
+                else
+                {
+                    auto g = gen->gen_expr(print->print);
+                    std::cout << g << std::endl;
+                    gen->data << "    s" << gen->str_count++ << " db \"" << g
+                              << "\",0\n";
+
+                    gen->code << "    lea rdi, [s" << gen->str_count - 1
+                              << "]\n";
+                    if(gen->sp % 2 != 0)
+                        gen->code << "    sub rsp, 8\n";
+                    gen->code << "    call puts\n";
+                    gen->code << "\n";
+                }
             }
         };
 
@@ -208,16 +236,15 @@ public:
         std::visit(visitor, internal->ret);
     }
 
-private:
-    const NodeProg* root;
+  private:
+    const NodeProg *root;
     std::stringstream code;
     std::stringstream ext;
     std::stringstream data;
     size_t sp = 0;
     size_t str_count = 0;
 
-    struct Var
-    {
+    struct Var {
         size_t stackl;
         Type type;
         int line;
@@ -248,3 +275,5 @@ private:
         sp++;
     }
 };
+
+#endif // CODEGEN_HPP
