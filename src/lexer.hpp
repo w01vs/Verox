@@ -25,7 +25,7 @@ struct Token {
     std::optional<std::string> val{};
 };
 
-inline void print_tokens(std::vector<Token> &tokens)
+inline void print_tokens(const std::vector<Token>& tokens)
 {
     for(int i = 0; i < tokens.size(); i++)
     {
@@ -59,6 +59,8 @@ inline void print_tokens(std::vector<Token> &tokens)
         case TokenType::print:
             std::cout << "print" << std::endl;
             break;
+        case TokenType::add:
+            std::cout << "+" << std::endl;
         default:
             break;
         }
@@ -89,15 +91,12 @@ class Lexer {
         return tokens;
     }
 
-    inline bool keywords(std::vector<Token> &tokens, std::string &buf, int &lc)
+    inline bool keywords(std::vector<Token>& tokens, std::string& buf, int& lc)
     {
         if(std::isalpha(peek().value()))
         {
             buf.push_back(take());
-            while(peek().has_value() && std::isalnum(peek().value()))
-            {
-                buf.push_back(take());
-            }
+            while(peek().has_value() && std::isalnum(peek().value())) { buf.push_back(take()); }
             if(buf == "return")
             {
                 tokens.push_back({TokenType::ret, lc});
@@ -126,15 +125,12 @@ class Lexer {
         return false;
     }
 
-    inline bool digits(std::vector<Token> &tokens, std::string &buf, int &lc)
+    inline bool digits(std::vector<Token>& tokens, std::string& buf, int& lc)
     {
         if(std::isdigit(peek().value()))
         {
             buf.push_back(take());
-            while(peek().has_value() && std::isdigit(peek().value()))
-            {
-                buf.push_back(take());
-            }
+            while(peek().has_value() && std::isdigit(peek().value())) { buf.push_back(take()); }
             tokens.push_back({TokenType::i_int, lc, buf});
             buf.clear();
             return true;
@@ -142,7 +138,7 @@ class Lexer {
         return false;
     }
 
-    inline bool symbols(std::vector<Token> &tokens, std::string &buf, int &lc)
+    inline bool symbols(std::vector<Token>& tokens, std::string& buf, int& lc)
     {
         if(peek().has_value() && peek().value() == ';')
         {

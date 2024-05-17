@@ -8,11 +8,11 @@
 #include "lexer.hpp"
 #include "parser.hpp"
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     if(argc != 2)
     {
-        std::cerr << "Error: Requires an input file " << std::endl;
+        std::cerr << "Error: Requires an input file yeet " << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     std::vector<Token> t = lexer.to_tokens();
 
     Parser parser(t);
-    std::optional<NodeProg *> tree = parser.parse();
+    std::optional<NodeProg*> tree = parser.parse();
 
     if(!tree.has_value())
     {

@@ -21,7 +21,7 @@ std::string print_type(Type type)
 
 class Generator {
   public:
-    explicit Generator(const NodeProg *root) : root(root) {}
+    explicit Generator(const NodeProg* root) : root(root) {}
 
     std::string gen_prog()
     {
@@ -40,13 +40,13 @@ class Generator {
         return data.str();
     }
 
-    void gen_stmt(const NodeStmt *stmt)
+    void gen_stmt(const NodeStmt* stmt)
     {
         struct StmtVisitor {
-            Generator *const gen;
-            void operator()(const NodeInternal *internal) const { gen->gen_internal(internal); }
+            Generator* const gen;
+            void operator()(const NodeInternal* internal) const { gen->gen_internal(internal); }
 
-            void operator()(const NodeStmtVar *var) const
+            void operator()(const NodeStmtVar* var) const
             {
                 if(gen->vars.contains(var->ident.val.value()))
                 {
@@ -55,9 +55,9 @@ class Generator {
                 }
 
                 struct ExprVisitor {
-                    Generator *const gen;
-                    const NodeStmtVar *var;
-                    void operator()(const NodeExprIdent *ident) const
+                    Generator* const gen;
+                    const NodeStmtVar* var;
+                    void operator()(const NodeExprIdent* ident) const
                     {
                         const auto temp = ident->ident.val.value();
                         if(!gen->vars.contains(temp))
@@ -78,13 +78,13 @@ class Generator {
                             }
                         }
                     }
-                    void operator()(const NodeExprIInt *i_int) const
+                    void operator()(const NodeExprIInt* i_int) const
                     {
                         gen->vars.insert({var->ident.val.value(), Var{gen->sp, var->type, i_int->i_int.line}});
                         gen->gen_expr(var->expr);
                     }
 
-                    void operator()(const BinExpr *binexpr) const {}
+                    void operator()(const BinExpr* binexpr) const {}
                 };
 
                 ExprVisitor visitor{gen, var};
@@ -96,19 +96,19 @@ class Generator {
         std::visit(visitor, stmt->var);
     }
 
-    std::string gen_expr(const NodeExpr *expr)
+    std::string gen_expr(const NodeExpr* expr)
     {
         struct ExprVisitor {
-            Generator *const gen;
+            Generator* const gen;
             bool eval;
-            std::string operator()(const NodeExprIdent *ident) const
+            std::string operator()(const NodeExprIdent* ident) const
             {
                 if(!gen->vars.contains(ident->ident.val.value()))
                 {
                     std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                const auto &var = gen->vars.at(ident->ident.val.value());
+                const auto& var = gen->vars.at(ident->ident.val.value());
                 std::stringstream offset;
                 offset << "QWORD [rsp + " << (gen->sp - var.stackl - 1) * 8 << "]";
                 gen->push(offset.str());
@@ -117,25 +117,25 @@ class Generator {
                 return ident->ident.val.value();
             }
 
-            std::string operator()(const NodeExprIInt *i_int) const
+            std::string operator()(const NodeExprIInt* i_int) const
             {
                 gen->code << "    mov rax, " << i_int->i_int.val.value() << "\n";
                 gen->push("rax");
                 gen->code << "\n";
                 return i_int->i_int.val.value();
             }
-            std::string operator()(const BinExpr *binexpr) const { return ""; }
+            std::string operator()(const BinExpr* binexpr) const { return ""; }
         };
 
         ExprVisitor visitor{this};
         return std::visit(visitor, expr->var);
     }
 
-    void gen_internal(const NodeInternal *internal)
+    void gen_internal(const NodeInternal* internal)
     {
         struct InternalVisitor {
-            Generator *const gen;
-            void operator()(const NodeInternalRet *ret) const
+            Generator* const gen;
+            void operator()(const NodeInternalRet* ret) const
             {
                 if(!gen->internals_called.contains("ret"))
                     gen->internals_called.insert({"ret", true});
@@ -151,7 +151,7 @@ class Generator {
                 gen->code << "    syscall\n";
                 gen->code << "\n";
             }
-            void operator()(const NodeInternalPrintf *print) const
+            void operator()(const NodeInternalPrintf* print) const
             {
                 std::cout << "Printing is currently not supported" << std::endl;
                 return;
@@ -195,7 +195,7 @@ class Generator {
                 else
                 {
                     // print immediate value
-                    
+
                     // auto g = gen->gen_expr(print->print);
                     // std::cout << g << std::endl;
                     // gen->data << "    s" << gen->str_count++ << " db \"" << g << "\",0\n";
@@ -205,7 +205,7 @@ class Generator {
                     // gen->code << "    mov rax, [rel printf wrt ..got]\n";
                     // gen->code << "    call rax\n";
                     // gen->code << "\n";
-                    
+
                 }
                 */
             }
@@ -216,7 +216,7 @@ class Generator {
     }
 
   private:
-    const NodeProg *root;
+    const NodeProg* root;
     std::stringstream code;
     std::stringstream ext;
     std::stringstream data;
@@ -242,13 +242,13 @@ class Generator {
         code << "    syscall\n";
     }
 
-    void pop(const std::string &reg)
+    void pop(const std::string& reg)
     {
         code << "    pop " << reg << "\n";
         sp--;
     }
 
-    void push(const std::string &reg)
+    void push(const std::string& reg)
     {
         code << "    push " << reg << "\n";
         sp++;
