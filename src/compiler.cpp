@@ -10,12 +10,13 @@
 
 int main(int argc, char* argv[])
 {
+    
     if(argc != 2)
     {
         std::cerr << "Error: Requires an input file yeet " << std::endl;
         exit(EXIT_FAILURE);
     }
-
+    
     std::string filename = argv[1];
     if(!filename.ends_with(".vx"))
     {
@@ -44,7 +45,6 @@ int main(int argc, char* argv[])
     }
 
     Generator gen(tree.value());
-
     std::fstream out("verox.asm", std::ios::out);
     out << gen.gen_prog();
     out.close();
@@ -54,6 +54,6 @@ int main(int argc, char* argv[])
     // std::endl; system(command.c_str());
     system("nasm -felf64 verox.asm");
     system("gcc -o verox verox.o -lc");
-
+    
     return EXIT_SUCCESS;
 }

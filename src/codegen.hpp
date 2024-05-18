@@ -54,12 +54,13 @@ class Generator {
                     exit(EXIT_FAILURE);
                 }
 
-                struct ExprVisitor {
+                struct ExprVisitor2 {
                     Generator* const gen;
                     const NodeStmtVar* var;
                     void operator()(const NodeExprIdent* ident) const
                     {
                         const auto temp = ident->ident.val.value();
+                        std::cout << temp;
                         if(!gen->vars.contains(temp))
                         {
                             std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
@@ -84,10 +85,13 @@ class Generator {
                         gen->gen_expr(var->expr);
                     }
 
-                    void operator()(const BinExpr* binexpr) const {}
+                    void operator()(const BinExpr* binexpr) const {
+                        gen->vars.insert({var->ident.val.value(), Var{gen->sp, var->type, var->ident.line}});
+                        gen_expr(binexpr);
+                    }
                 };
 
-                ExprVisitor visitor{gen, var};
+                ExprVisitor2 visitor{gen, var};
                 std::visit(visitor, var->expr->var);
             }
         };
@@ -213,6 +217,36 @@ class Generator {
 
         InternalVisitor visitor{this};
         std::visit(visitor, internal->ret);
+    }
+
+    std::string gen_bexpr(const BinExpr* binexpr)
+    {
+        struct CenterVisitor {
+            Generator* const gen;
+            explicit BinExprVisitor(Generator* gen) : gen(gen) {}
+            std::string operator()(const Term* term) const
+            {
+                struct TermVisitor {
+                    Generator* const gen;
+                    explicit TermVisitor(Generator* gen) : gen(gen) {}
+                    std::string operator()(const NodeExprIInt* i_int) const
+                    {
+                        return i_int->i_int.val.value();
+                    }
+                    std::string operator()(const NodeExprIdent* ident) const
+                    {
+                        return ident->ident.val.value();
+                    }
+                };
+            }
+            std::string operator()(const BinOp* op) const
+            {
+                
+            }
+        };
+
+        CenterVisitor visitor{this};
+        std::visit(visitor, binexpr->val);
     }
 
   private:

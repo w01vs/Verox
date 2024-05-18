@@ -23,7 +23,7 @@ struct NodeExprIdent {
 };
 
 struct Term {
-    std::variant<NodeExprIdent*, NodeExprIInt*> t;
+    std::variant<NodeExprIdent*, NodeExprIInt*> val;
 };
 
 struct BinExpr;

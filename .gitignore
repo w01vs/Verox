@@ -8,3 +8,5 @@ cmake*
 Makefile
 comp
 .cache
+CMakeFiles
+CMakeCache.txt
