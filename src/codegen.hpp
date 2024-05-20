@@ -31,108 +31,77 @@ class Generator {
         code << "    mov rbp, rsp\n\n";
         data << "default rel\n";
         data << "section .data\n";
-        data << "formatint db \"%d\", 0\n";
         for(int i = 0; i < root->stmts.size(); i++) { gen_stmt(root->stmts.at(i)); }
         if(!internals_called.at("ret"))
             gen_ret();
         data << "\n";
-        data << ext.str() << code.str();
+        data << ext.str() << init.str() << code.str();
         return data.str();
     }
 
     void gen_stmt(const NodeStmt* stmt)
     {
-        struct StmtVisitor {
-            Generator* const gen;
-            void operator()(const NodeInternal* internal) const { gen->gen_internal(internal); }
-
-            void operator()(const NodeStmtVar* var) const
+        if(stmt->var.index() == 0) // Internal
+        {
+            NodeInternal* var = std::get<NodeInternal*>(stmt->var);
+            gen_internal(var);
+        }
+        else if(stmt->var.index() == 1) // Variable
+        {
+            NodeStmtVar* var = std::get<NodeStmtVar*>(stmt->var);
+            if(vars.contains(var->ident.val.value()))
             {
-                if(gen->vars.contains(var->ident.val.value()))
-                {
-                    std::cerr << "Error: Identifier '" << var->ident.val.value() << "' has already been declared on line " << gen->vars.at(var->ident.val.value()).line << ", but was declared again on line " << var->ident.line << std::endl;
-                    exit(EXIT_FAILURE);
-                }
-
-                struct ExprVisitor2 {
-                    Generator* const gen;
-                    const NodeStmtVar* var;
-                    void operator()(const NodeExprIdent* ident) const
-                    {
-                        const auto temp = ident->ident.val.value();
-                        std::cout << temp;
-                        if(!gen->vars.contains(temp))
-                        {
-                            std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
-                            exit(EXIT_FAILURE);
-                        }
-                        else
-                        {
-                            if(gen->vars.at(temp).type == var->type)
-                            {
-                                gen->vars.insert({var->ident.val.value(), Var{gen->sp, var->type, var->ident.line}});
-                                gen->gen_expr(var->expr);
-                            }
-                            else
-                            {
-                                std::cerr << "TypeError: expected " << type_string(var->type) << " but got " << type_string(gen->vars.at(temp).type) << std::endl;
-                            }
-                        }
-                    }
-                    void operator()(const NodeExprIInt* i_int) const
-                    {
-                        gen->vars.insert({var->ident.val.value(), Var{gen->sp, var->type, i_int->i_int.line}});
-                        gen->gen_expr(var->expr);
-                    }
-
-                    void operator()(const BinExpr* binexpr) const {
-                        gen->vars.insert({var->ident.val.value(), Var{gen->sp, var->type, var->ident.line}});
-                        gen_expr(binexpr);
-                    }
-                };
-
-                ExprVisitor2 visitor{gen, var};
-                std::visit(visitor, var->expr->var);
+                std::cerr << "Error: Identifier '" << var->ident.val.value() << "' has already been declared on line " << vars.at(var->ident.val.value()).line << ", but was declared again on line " << var->ident.line << std::endl;
+                exit(EXIT_FAILURE);
             }
-        };
 
-        StmtVisitor visitor{this};
-        std::visit(visitor, stmt->var);
+            vars.insert({var->ident.val.value(), {sp, var->type, var->ident.line}});
+            gen_expr(var->expr);
+        }
     }
 
-    std::string gen_expr(const NodeExpr* expr)
+    void gen_expr(const NodeExpr* expr)
     {
-        struct ExprVisitor {
-            Generator* const gen;
-            bool eval;
-            std::string operator()(const NodeExprIdent* ident) const
+        if(expr->var.index() == 0) // Term
+        {
+            NodeTerm* term = std::get<NodeTerm*>(expr->var);
+            gen_term(term);
+        }
+        if(expr->var.index() == 1) // BinExpr
+        {
+            NodeBinExpr* binexpr = std::get<NodeBinExpr*>(expr->var);
+            gen_bexpr(binexpr);
+        }
+    }
+
+    void gen_term(const NodeTerm* term)
+    {
+        if(term->val.index() == 0) // Identifier
+        {
+            NodeExprIdent* ident = std::get<NodeExprIdent*>(term->val);
+            if(!vars.contains(ident->ident.val.value()))
             {
-                if(!gen->vars.contains(ident->ident.val.value()))
-                {
-                    std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
-                    exit(EXIT_FAILURE);
-                }
-                const auto& var = gen->vars.at(ident->ident.val.value());
-                std::stringstream offset;
-                offset << "QWORD [rsp + " << (gen->sp - var.stackl - 1) * 8 << "]";
-                gen->push(offset.str());
-                gen->code << "\n";
-
-                return ident->ident.val.value();
+                std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
+                exit(EXIT_FAILURE);
             }
-
-            std::string operator()(const NodeExprIInt* i_int) const
-            {
-                gen->code << "    mov rax, " << i_int->i_int.val.value() << "\n";
-                gen->push("rax");
-                gen->code << "\n";
-                return i_int->i_int.val.value();
-            }
-            std::string operator()(const BinExpr* binexpr) const { return ""; }
-        };
-
-        ExprVisitor visitor{this};
-        return std::visit(visitor, expr->var);
+            const Var& var = vars.at(ident->ident.val.value());
+            std::stringstream offset;
+            offset << "QWORD [rsp + " << (sp - var.stackl - 1) * 8 << "]";
+            push(offset.str());
+            code << "\n";
+        }
+        else if(term->val.index() == 1) // Immediate Int
+        {
+            NodeExprIInt* i_int = std::get<NodeExprIInt*>(term->val);
+            code << "    mov rax, " << i_int->i_int.val.value() << "\n";
+            push("rax");
+            code << "\n";
+        }
+        else if(term->val.index() == 2) // Parentheses
+        {
+            NodeTermParens* paren = std::get<NodeTermParens*>(term->val);
+            gen_expr(paren->expr);
+        }
     }
 
     void gen_internal(const NodeInternal* internal)
@@ -159,59 +128,6 @@ class Generator {
             {
                 std::cout << "Printing is currently not supported" << std::endl;
                 return;
-                /*
-                if(!gen->internals_called.contains("printf"))
-                {
-                    gen->internals_called.insert({"printf", true});
-                    gen->ext << "extern printf\n\n"; // Declare the printf function
-                }
-                struct ExprVisitor {
-                    Generator const *gen;
-                    std::optional<std::string> operator()(const NodeExprIdent *ident) const
-                    {
-                        if(ident->ident.val.has_value() && gen->vars.contains(ident->ident.val.value()))
-                            return {ident->ident.val.value()};
-                        return {};
-                    }
-                    std::optional<std::string> operator()(const NodeExprIInt *i_int) const { return {}; }
-                    std::optional<std::string> operator()(const BinExpr *binexpr) const { return {}; }
-                };
-
-                const std::optional<std::string> is_ident = std::visit(ExprVisitor{gen}, print->print->var);
-                if(is_ident.has_value())
-                {
-                    // Find variable on the stack and print it
-                    const auto val = gen->vars.contains(is_ident.value());
-                    if(val)
-                    {
-                        gen->gen_expr(print->print);
-                        gen->pop("rsi");
-                        gen->code << "    mov rsi, [rsi]\n";
-                        gen->code << "    mov r10, [rel printf wrt ..got]\n";
-                        gen->code << "    lea rdi, [rel formatint]\n";
-                        gen->code << "    xor rax, rax\n";
-                        gen->code << "    call r10\n";
-                        gen->code << "\n";
-                        if(gen->sp % 2 != 0)
-                            gen->code << "    add rsp, 8\n";
-                    }
-                }
-                else
-                {
-                    // print immediate value
-
-                    // auto g = gen->gen_expr(print->print);
-                    // std::cout << g << std::endl;
-                    // gen->data << "    s" << gen->str_count++ << " db \"" << g << "\",0\n";
-                    // gen->code << "    lea rdi, [s" << gen->str_count - 1 << "]\n";
-                    // if(gen->sp % 2 != 0)
-                    //     gen->code << "    sub rsp, 8\n";
-                    // gen->code << "    mov rax, [rel printf wrt ..got]\n";
-                    // gen->code << "    call rax\n";
-                    // gen->code << "\n";
-
-                }
-                */
             }
         };
 
@@ -219,34 +135,57 @@ class Generator {
         std::visit(visitor, internal->ret);
     }
 
-    std::string gen_bexpr(const BinExpr* binexpr)
+    void gen_bexpr(const NodeBinExpr* binexpr)
     {
-        struct CenterVisitor {
-            Generator* const gen;
-            explicit BinExprVisitor(Generator* gen) : gen(gen) {}
-            std::string operator()(const Term* term) const
-            {
-                struct TermVisitor {
-                    Generator* const gen;
-                    explicit TermVisitor(Generator* gen) : gen(gen) {}
-                    std::string operator()(const NodeExprIInt* i_int) const
-                    {
-                        return i_int->i_int.val.value();
-                    }
-                    std::string operator()(const NodeExprIdent* ident) const
-                    {
-                        return ident->ident.val.value();
-                    }
-                };
-            }
-            std::string operator()(const BinOp* op) const
-            {
-                
-            }
-        };
-
-        CenterVisitor visitor{this};
-        std::visit(visitor, binexpr->val);
+        if(binexpr->val.index() == 0) // Add
+        {
+            NodeBinExprAdd* add = std::get<NodeBinExprAdd*>(binexpr->val);
+            gen_expr(add->lhs);
+            gen_expr(add->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    add rax, rdi\n";
+            push("rax");
+            code << "\n";
+        }
+        else if (binexpr->val.index() == 1) // Division
+        {
+            NodeBinExprDiv* div = std::get<NodeBinExprDiv*>(binexpr->val);
+            gen_expr(div->lhs);
+            gen_expr(div->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    cqo\n";
+            code << "    idiv rdi\n";
+            push("rax");
+            code << "\n";
+        }
+        else if (binexpr->val.index() == 2) // Subtraction
+        {
+            NodeBinExprSub* sub = std::get<NodeBinExprSub*>(binexpr->val);
+            gen_expr(sub->lhs);
+            gen_expr(sub->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    sub rax, rdi\n";
+            push("rax");
+            code << "\n";
+        }
+        else if (binexpr->val.index() == 3) // Multiplication
+        {
+            NodeBinExprMult* mul = std::get<NodeBinExprMult*>(binexpr->val);
+            gen_expr(mul->lhs);
+            gen_expr(mul->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    imul rax, rdi\n";
+            push("rax");
+            code << "\n";
+        }
+        else {
+            std::cerr << "Error: Unknown binary expression" << std::endl;
+            exit(EXIT_FAILURE);
+        }
     }
 
   private:
@@ -254,6 +193,7 @@ class Generator {
     std::stringstream code;
     std::stringstream ext;
     std::stringstream data;
+    std::stringstream init;
     size_t sp = 0;
     size_t str_count = 0;
 

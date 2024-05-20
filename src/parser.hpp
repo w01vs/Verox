@@ -3,6 +3,7 @@
 
 #include "arena.hpp"
 #include "lexer.hpp"
+#include <cassert>
 #include <cstdlib>
 #include <iostream>
 #include <unordered_map>
@@ -12,6 +13,9 @@ enum class Type { undefined, _int };
 
 std::unordered_map<TokenType, int> op_prec = {
     {TokenType::add, 0},
+    {TokenType::minus, 0},
+    {TokenType::star, 1},
+    {TokenType::fslash, 1},
 };
 
 struct NodeExprIInt {
@@ -22,26 +26,45 @@ struct NodeExprIdent {
     Token ident; // var name
 };
 
-struct Term {
-    std::variant<NodeExprIdent*, NodeExprIInt*> val;
+struct NodeTermParens;
+
+struct NodeTerm {
+    std::variant<NodeExprIdent*, NodeExprIInt*, NodeTermParens*> val;
 };
 
-struct BinExpr;
+struct NodeBinExpr;
 
 struct NodeExpr {
-    std::variant<NodeExprIdent*, NodeExprIInt*, BinExpr*> var;
+    std::variant<NodeTerm*, NodeBinExpr*> var;
     std::optional<Type> type;
 };
 
-struct BinOp {
-    Token op;
-    int prec;
+struct NodeTermParens {
+    NodeExpr* expr;
 };
 
-struct BinExpr {
-    std::optional<BinExpr*> rhs{};
-    std::variant<BinOp*, Term*> val;
-    std::optional<BinExpr*> lhs{};
+struct NodeBinExprAdd {
+    NodeExpr* lhs;
+    NodeExpr* rhs;
+};
+
+struct NodeBinExprMult {
+    NodeExpr* lhs;
+    NodeExpr* rhs;
+};
+
+struct NodeBinExprSub {
+    NodeExpr* lhs;
+    NodeExpr* rhs;
+};
+
+struct NodeBinExprDiv {
+    NodeExpr* lhs;
+    NodeExpr* rhs;
+};
+
+struct NodeBinExpr {
+    std::variant<NodeBinExprAdd*, NodeBinExprDiv*, NodeBinExprSub*, NodeBinExprMult*> val;
 };
 
 struct NodeInternalRet {
@@ -83,183 +106,130 @@ inline std::string type_string(Type type)
     }
 }
 
+inline std::optional<int> get_prec(TokenType type)
+{
+    if(op_prec.find(type) == op_prec.end())
+    {
+        return {};
+    }
+
+    return op_prec[type];
+}
+
 class Parser {
   public:
     inline explicit Parser(std::vector<Token> tokens) : tokens(tokens), arena(1024 * 1024 * 4) // 4 mb
     {
     }
 
-    inline std::optional<NodeExpr*> parse_expr()
+    inline std::optional<NodeExpr*> parse_expr(int min_prec = 0)
     {
-        if(peek().has_value() && peek().value().type == TokenType::semi)
-        {
-            std::cerr << "Error: Expected expression on line " << peek(-1).value().line << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        std::vector<Token> expr = {};
-        while(peek().has_value())
-        {
-            if(auto ident = try_take(TokenType::ident))
-                expr.push_back(ident.value());
-            else if(auto i_int = try_take(TokenType::i_int))
-                expr.push_back(i_int.value());
-            else if(auto add = try_take(TokenType::add))
-                expr.push_back(add.value());
-            else
-                break;
-        }
+        NodeTerm* term_lhs = parse_term();
 
-        if(peek().has_value() && peek().value().type == TokenType::semi)
+        NodeExpr* expr_lhs = arena.emplace<NodeExpr>(term_lhs);
+
+        while(true)
         {
-            // last element is an operator, missing term
-            if(expr[expr.size() - 1].type == TokenType::add)
+            std::optional<Token> op = peek();
+            std::optional<int> prec;
+            if(op.has_value())
             {
-                std::cerr << "Error: Expected term on line " << peek(-1).value().line << " ~117" << std::endl;
+                prec = get_prec(op.value().type);
+                if(!prec.has_value() || prec.value() < min_prec)
+                    break;
+            }
+            else
+            {
+                break;
+            }
+
+            const auto [type, line, val] = take();
+            const int next_prec = prec.value() + 1;
+
+            auto rhs = parse_expr(next_prec);
+            if(!rhs.has_value())
+            {
+                std::cerr << "SyntaxError: Expected expression on line " << line << std::endl;
                 exit(EXIT_FAILURE);
             }
 
-            if(expr.size() == 1)
+            auto expr = arena.emplace<NodeBinExpr>();
+            auto expr_lhs2 = arena.emplace<NodeExpr>();
+            expr_lhs2->var = expr_lhs->var;
+            if(type == TokenType::add)
             {
-                auto token = expr.at(0);
-                if(token.type == TokenType::i_int)
-                {
-                    auto i_int = arena.emplace<NodeExprIInt>(token);
-                    auto node_expr = arena.emplace<NodeExpr>(i_int);
-                    return node_expr;
+                auto add = arena.emplace<NodeBinExprAdd>(expr_lhs2, rhs.value());
+                expr->val = add;
+            }
+            else if(type == TokenType::minus)
+            {
+                auto sub = arena.emplace<NodeBinExprSub>(expr_lhs2, rhs.value());
+                expr->val = sub;
+            }
+            else if(type == TokenType::star)
+            {
+                auto mult = arena.emplace<NodeBinExprMult>(expr_lhs2, rhs.value());
+                expr->val = mult;
+            }
+            else if(type == TokenType::fslash)
+            {
+                auto div = arena.emplace<NodeBinExprDiv>(expr_lhs2, rhs.value());
+                expr->val = div;
+            }
+            else
+            {
+                assert(false);
+            }
+            expr_lhs->var = expr;
+        }
+
+        return expr_lhs;
+    }
+
+    inline NodeTerm* parse_term()
+    {
+        NodeTerm* term = arena.emplace<NodeTerm>();
+        if(peek().has_value())
+        {
+            auto token = take();
+            if(token.type == TokenType::i_int)
+            {
+                auto i_int = arena.emplace<NodeExprIInt>(token);
+                term->val = i_int;
+                return term;
+            }
+            else if(token.type == TokenType::ident)
+            {
+                auto ident = arena.emplace<NodeExprIdent>(token);
+                term->val = ident;
+                return term;
+            }
+            else if(token.type == TokenType::open_p) {
+                auto expr = parse_expr();
+                if(!expr.has_value()) {
+                    std::cerr << "SyntaxError: Expected expression on line " << token.line << std::endl;
                 }
-                else if(token.type == TokenType::ident)
-                {
-                    auto ident = arena.emplace<NodeExprIdent>(token);
-                    auto node_expr = arena.emplace<NodeExpr>(ident);
-                    return node_expr;
+                if(auto close = try_take(TokenType::close_p)) {
+                    auto term_parens = arena.emplace<NodeTermParens>(expr.value());
+                    auto term = arena.emplace<NodeTerm>(term_parens);
+                    return term;
                 }
-                else
-                {
-                    std::cerr << "Error: Expected term on line " << peek(-1).value().line << " ~138" << std::endl;
+                else {
+                    std::cerr << "SyntaxError: Expected ')' on line " << token.line << std::endl;
                     exit(EXIT_FAILURE);
                 }
             }
-            auto binexpr = parse_binexpr_v(expr);
-            auto expr = arena.emplace<NodeExpr>(binexpr);
-            return expr;
+            else
+            {
+                std::cerr << "Error: Expected term on line " << peek(-1).value().line << std::endl;
+                exit(EXIT_FAILURE);
+            }
         }
         else
         {
-            std::cerr << "SyntaxError: Expected ';' on line " << peek(-1).value().line << std::endl;
+            std::cerr << "Error: Expected term on line " << peek(-1).value().line << std::endl;
             exit(EXIT_FAILURE);
         }
-
-        return {};
-    }
-
-    inline BinExpr* parse_binexpr_v(const std::vector<Token>& expr, int op = 0, bool rhs = false)
-    {
-        if(op % 2 == 0 && op != 0)
-        {
-            std::cerr << "SyntaxError: Expected term on line " << expr.at(op).line << " ~163" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        if(expr.size() == 1 || op == 1 || op == expr.size() - 2)
-        {
-            auto term = arena.emplace<Term>();
-            auto bexpr = arena.emplace<BinExpr>();
-            bexpr->val = term;
-            return bexpr;
-        }
-        if(op == 0)
-        {
-            std::vector<std::pair<int, int>> ops = {};
-            auto lowest_prec = 100000;
-            for(int i = 0; i < expr.size(); i++)
-            {
-                if(expr[i].type == TokenType::add)
-                {
-                    
-                    if(op_prec[TokenType::add] < lowest_prec)
-                    {
-                        lowest_prec = op_prec[TokenType::add];
-                        ops.emplace_back(i, op_prec[TokenType::add]);
-                        break;
-                    }
-                }
-            }
-            std::vector<std::pair<int, int>> lowest_ops = {};
-            for(int i = 0; i < ops.size(); i++)
-            {
-                if(ops[i].second == lowest_prec){
-                    lowest_ops.push_back(ops[i]);
-                }
-            }
-
-            int top_op = lowest_ops.size() > 1 ? lowest_ops.size() / 2 - 1 : 0;
-            Token t = expr[lowest_ops[top_op].first];
-            auto bin_op = arena.emplace<BinOp>(t, lowest_ops[top_op].second);
-            auto bin_expr = arena.emplace<BinExpr>();
-            bin_expr->val = bin_op;
-            bin_expr->lhs = {parse_binexpr_v(expr, lowest_ops[top_op].first)};
-            bin_expr->rhs = {parse_binexpr_v(expr, lowest_ops[top_op].first, true)};
-
-            return bin_expr;
-        }
-        std::cout << "again" << std::endl;
-        if(rhs)
-        {
-            std::vector<std::pair<int, int>> ops = {};
-            auto lowest_prec = 100000;
-            for(int i = op; i < expr.size(); i++)
-            {
-                if(expr[i].type == TokenType::add)
-                {
-                    if(op_prec[TokenType::add] < lowest_prec)
-                    {
-                        lowest_prec = op_prec[TokenType::add];
-                        ops.emplace_back(i, op_prec[TokenType::add]);
-                        break;
-                    }
-                }
-            }
-            std::vector<std::pair<int, int>> lowest_ops = {};
-            for(int i = 0; i < ops.size(); i++)
-            {
-                if(ops[i].second == lowest_prec)
-                    lowest_ops.emplace_back(ops[i]);
-            }
-            int top_op = lowest_ops.size() / 2 - 1;
-            auto bin_op = arena.emplace<BinOp>(expr.at(lowest_ops[top_op].first), lowest_ops[top_op].second);
-            auto bin_expr = arena.emplace<BinExpr>();
-            bin_expr->val = bin_op;
-            bin_expr->lhs = {parse_binexpr_v(expr, lowest_ops[top_op].first)};
-            bin_expr->rhs = {parse_binexpr_v(expr, lowest_ops[top_op].first, true)};
-            return bin_expr;
-        }
-
-        std::vector<std::pair<int, int>> ops = {};
-        auto lowest_prec = 100000;
-        for(int i = 0; i < op; i++)
-        {
-            if(expr[i].type == TokenType::add)
-            {
-                if(op_prec[TokenType::add] < lowest_prec)
-                {
-                    lowest_prec = op_prec[TokenType::add];
-                    ops.emplace_back(i, op_prec[TokenType::add]);
-                    break;
-                }
-            }
-        }
-        std::vector<std::pair<int, int>> lowest_ops = {};
-        for(int i = 0; i < ops.size(); i++)
-        {
-            if(ops[i].second == lowest_prec)
-                lowest_ops.emplace_back(ops[i]);
-        }
-        int top_op = lowest_ops.size() / 2 - 1;
-        auto bin_op = arena.emplace<BinOp>(expr.at(lowest_ops[top_op].first), lowest_ops[top_op].second);
-        auto bin_expr = arena.emplace<BinExpr>();
-        bin_expr->val = bin_op;
-        bin_expr->lhs = {parse_binexpr_v(expr, lowest_ops[top_op].first)};
-        bin_expr->rhs = {parse_binexpr_v(expr, lowest_ops[top_op].first, true)};
-        return bin_expr;
     }
 
     inline std::optional<NodeStmt*> parse_stmt()
@@ -298,20 +268,16 @@ class Parser {
                 }
                 if(!semicolon())
                 {
-                    std::cerr << "SyntaxError: Expected ';' on line " << std::endl;
+                    std::cerr << "SyntaxError: Expected ';' on line " << " ~267" << std::endl;
 
                     std::visit(
                         [](auto&& arg)
                         {
-                            if constexpr(std::is_same_v<decltype(arg), NodeExprIdent*>)
+                            if constexpr(std::is_same_v<decltype(arg), NodeTerm*>)
                             {
-                                std::cout << arg.ident.line << std::endl;
+                                std::cout << arg.val.line << std::endl;
                             }
-                            else if constexpr(std::is_same_v<decltype(arg), NodeExprIInt*>)
-                            {
-                                std::cout << arg.i_int.line << std::endl;
-                            }
-                            else if constexpr(std::is_same_v<decltype(arg), BinExpr*>)
+                            else if constexpr(std::is_same_v<decltype(arg), NodeBinExpr*>)
                             {
                                 std::cout << arg->val.value().line << std::endl;
                             }
@@ -354,7 +320,6 @@ class Parser {
     inline std::optional<NodeProg*> parse()
     {
         NodeProg* root = arena.emplace<NodeProg>();
-        int i = 1;
         while(peek().has_value())
         {
             if(auto stmt = parse_stmt())
@@ -366,7 +331,6 @@ class Parser {
                 std::cerr << "Invalid statement" << std::endl;
                 exit(EXIT_FAILURE);
             }
-            i++;
         }
         return root;
     }

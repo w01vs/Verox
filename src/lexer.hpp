@@ -16,7 +16,10 @@ enum class TokenType {
     open_p,  // opening parenthesis
     close_p, // closing parenthesis
     print,   // print -> internal
-    add      // '+'
+    add,     // '+'
+    star,    // '*'
+    fslash,  // '/'
+    minus,   // '-'
 };
 
 struct Token {
@@ -64,6 +67,52 @@ inline void print_tokens(const std::vector<Token>& tokens)
         default:
             break;
         }
+    }
+}
+
+inline void print_token_type(const TokenType& type)
+{
+    switch(type)
+    {
+    case TokenType::ret:
+        std::cout << "return" << std::endl;
+        break;
+    case TokenType::i_int:
+        std::cout << "i_int" << std::endl;
+        break;
+    case TokenType::semi:
+        std::cout << "semicolon" << std::endl;
+        break;
+    case TokenType::type:
+        std::cout << "type" << std::endl;
+        break;
+    case TokenType::ident:
+        std::cout << "identifier" << std::endl;
+        break;
+    case TokenType::assign:
+        std::cout << "assignment" << std::endl;
+        break;
+    case TokenType::open_p:
+        std::cout << "opening parenthesis" << std::endl;
+        break;
+    case TokenType::close_p:
+        std::cout << "closing parenthesis" << std::endl;
+        break;
+    case TokenType::print:
+        std::cout << "print" << std::endl;
+        break;
+    case TokenType::add:
+        std::cout << "add" << std::endl;
+        break;
+    case TokenType::star:
+        std::cout << "star" << std::endl;
+        break;
+    case TokenType::fslash:
+        std::cout << "forward slash" << std::endl;
+        break;
+    case TokenType::minus:
+        std::cout << "minus" << std::endl;
+        break;
     }
 }
 
@@ -179,6 +228,24 @@ class Lexer {
         {
             take();
             tokens.push_back({TokenType::add, lc});
+            return true;
+        }
+        else if(peek().has_value() && peek().value() == '-')
+        {
+            take();
+            tokens.push_back({TokenType::minus, lc});
+            return true;
+        }
+        else if(peek().has_value() && peek().value() == '*')
+        {
+            take();
+            tokens.push_back({TokenType::star, lc});
+            return true;
+        }
+        else if(peek().has_value() && peek().value() == '/')
+        {
+            take();
+            tokens.push_back({TokenType::fslash, lc});
             return true;
         }
         return false;
