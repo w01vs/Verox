@@ -1,2 +1,4 @@
 int y = 10 * (2 + 3);
-return y;
+int x = 7;
+int z = y - x;
+return z;
