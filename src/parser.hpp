@@ -11,7 +11,7 @@
 
 enum class Type { undefined, _int };
 
-std::unordered_map<TokenType, int> op_prec = {
+inline std::unordered_map<TokenType, int> op_prec = {
     {TokenType::add, 0},
     {TokenType::minus, 0},
     {TokenType::star, 1},
@@ -87,12 +87,18 @@ struct NodeStmtVar {
     NodeExpr* expr; // var value
 };
 
+struct NodeScope;
+
 struct NodeStmt {
-    std::variant<NodeInternal*, NodeStmtVar*> var; // Internal stuff or variable
+    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*> var; // Internal stuff or variable
+};
+
+struct NodeScope {
+    std::vector<NodeStmt*> stmts; // All statements in a scope
 };
 
 struct NodeProg {
-    std::vector<NodeStmt*> stmts; // All statements
+    std::vector<NodeStmt*> stmts; // All statements outside scopes
 };
 
 inline std::string type_string(Type type)
@@ -186,6 +192,36 @@ class Parser {
         return expr_lhs;
     }
 
+    inline NodeScope* parse_scope()
+    {
+        NodeScope* scope = arena.emplace<NodeScope>();
+        bool ended = false;
+        while(peek().has_value() && !ended)
+        {
+            if(auto end = try_take(TokenType::close_b))
+            {
+                ended = true;
+                break;
+            }
+
+            if(auto stmt = parse_stmt())
+            {
+                scope->stmts.push_back(stmt.value());
+            }
+            else
+            {
+                std::cerr << "Invalid statement" << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+        if(!ended)
+        {
+            std::cerr << "SyntaxError: Expected '}' on line " << peek(-1).value().line << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        return scope;
+    }
+
     inline NodeTerm* parse_term()
     {
         NodeTerm* term = arena.emplace<NodeTerm>();
@@ -204,17 +240,21 @@ class Parser {
                 term->val = ident;
                 return term;
             }
-            else if(token.type == TokenType::open_p) {
+            else if(token.type == TokenType::open_p)
+            {
                 auto expr = parse_expr();
-                if(!expr.has_value()) {
+                if(!expr.has_value())
+                {
                     std::cerr << "SyntaxError: Expected expression on line " << token.line << std::endl;
                 }
-                if(auto close = try_take(TokenType::close_p)) {
+                if(auto close = try_take(TokenType::close_p))
+                {
                     auto term_parens = arena.emplace<NodeTermParens>(expr.value());
                     auto term = arena.emplace<NodeTerm>(term_parens);
                     return term;
                 }
-                else {
+                else
+                {
                     std::cerr << "SyntaxError: Expected ')' on line " << token.line << std::endl;
                     exit(EXIT_FAILURE);
                 }
@@ -311,6 +351,12 @@ class Parser {
                 }
                 auto internal_expr = arena.emplace<NodeInternal>(stmt_prt);
                 return arena.emplace<NodeStmt>(internal_expr);
+            }
+            else if(auto bracket = try_take(TokenType::open_b))
+            {
+                auto scope = parse_scope();
+                auto stmt = arena.emplace<NodeStmt>(scope);
+                return stmt;
             }
         }
 

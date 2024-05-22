@@ -2,14 +2,15 @@
 $$ 
 \begin{align}
     \text{[Prog]} &\to \text{[stmt]}^* \\
-    \text{[stmt]} &\to 
+    \text{[stmt]} &\to
         \begin{cases}
         return \text{ [Expr];} \\
-        \text{[type]} \text{ [ident]} = \text{[Expr]};
+        \text{[type]} \text{ [ident]} = \text{[Expr]}; \\
+        \text{[scope]}
         \end{cases} \\
-    \text{[return]} &\to return\text{ [Expr]}; 
-    \\
-    \text{[Expr]} &\to 
+    \text{[scope]} &\to [stmt]^*\\
+    \text{[return]} &\to return\text{ [Expr]}; \\
+    \text{[Expr]} &\to
     \begin{cases}
         \text{[Term]} \\
         \text{[BinExpr]}\\
@@ -32,7 +33,7 @@ $$
         \text{-} & \text{prec = 0} \\
     \end{cases}\\
     \text{[ident]} &\to \text{variable name} \\
-    \text{[type]} &\to 
+    \text{[type]} &\to
         \begin{cases}
             \text{int}
         \end{cases}\\

@@ -2,11 +2,12 @@
 #define CODEGEN_HPP
 
 #include "parser.hpp"
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <unordered_map>
 
-std::string print_type(Type type)
+inline std::string print_type(Type type)
 {
     switch(type)
     {
@@ -48,15 +49,30 @@ class Generator {
         }
         else if(stmt->var.index() == 1) // Variable
         {
+            code << "    ; Declaring variable\n";
             NodeStmtVar* var = std::get<NodeStmtVar*>(stmt->var);
-            if(vars.contains(var->ident.val.value()))
+            if(var_declared(var->ident.val.value()))
             {
-                std::cerr << "Error: Identifier '" << var->ident.val.value() << "' has already been declared on line " << vars.at(var->ident.val.value()).line << ", but was declared again on line " << var->ident.line << std::endl;
+                std::cerr << "Error: Identifier '" << var->ident.val.value() << "' has already been declared on line " << get_var(var->ident.val.value()).line << ", but was declared again on line " << var->ident.line << std::endl;
                 exit(EXIT_FAILURE);
             }
-
-            vars.insert({var->ident.val.value(), {sp, var->type, var->ident.line}});
+            vars.push_back({var->ident.val.value(), sp, var->type, var->ident.line});
             gen_expr(var->expr);
+        }
+        else if(stmt->var.index() == 2) // Scope
+        {
+            code << "    ; Entering scope\n";
+            NodeScope* scope = std::get<NodeScope*>(stmt->var);
+            size_t vars_size = vars.size();
+            for(int i = 0; i < scope->stmts.size(); i++) { gen_stmt(scope->stmts.at(i)); }
+            size_t pop = vars.size() - vars_size;
+            if(pop > 0)
+            {
+                code <<"    ; Exiting scope\n";
+                code << "    add rsp, " << pop * 8 << "\n";
+                sp -= pop;
+            }
+            for(int i = 0; i < pop; i++) { vars.pop_back(); }
         }
     }
 
@@ -79,12 +95,12 @@ class Generator {
         if(term->val.index() == 0) // Identifier
         {
             NodeExprIdent* ident = std::get<NodeExprIdent*>(term->val);
-            if(!vars.contains(ident->ident.val.value()))
+            if(!var_declared(ident->ident.val.value()))
             {
                 std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
                 exit(EXIT_FAILURE);
             }
-            const Var& var = vars.at(ident->ident.val.value());
+            const Var& var = get_var(ident->ident.val.value());
             std::stringstream offset;
             offset << "QWORD [rsp + " << (sp - var.stackl - 1) * 8 << "]";
             push(offset.str());
@@ -189,6 +205,13 @@ class Generator {
     }
 
   private:
+    struct Var {
+        std::string name;
+        size_t stackl;
+        Type type;
+        int line;
+    };
+
     const NodeProg* root;
     std::stringstream code;
     std::stringstream ext;
@@ -197,14 +220,16 @@ class Generator {
     size_t sp = 0;
     size_t str_count = 0;
 
-    struct Var {
-        size_t stackl;
-        Type type;
-        int line;
+    std::vector<Var> vars;
+    std::unordered_map<std::string, bool> internals_called;
+
+    bool var_declared(std::string identifier) {
+        return std::ranges::find(vars, identifier, &Var::name) != vars.end();
     };
 
-    std::unordered_map<std::string, Var> vars;
-    std::unordered_map<std::string, bool> internals_called;
+    Var get_var(std::string identifier) {
+        return *std::ranges::find(vars, identifier, &Var::name);
+    };
 
     void gen_ret()
     {

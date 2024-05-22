@@ -9,17 +9,19 @@
 enum class TokenType {
     ret,     // return -> internal
     i_int,   // immediate int
-    semi,    // semicolon
-    type,    // a type
+    semi,    // ';'
+    type,    // a typename
     ident,   // a variable name
     assign,  // '='
-    open_p,  // opening parenthesis
-    close_p, // closing parenthesis
+    open_p,  // '('
+    close_p, // ')'
     print,   // print -> internal
     add,     // '+'
     star,    // '*'
     fslash,  // '/'
     minus,   // '-'
+    open_b,  // '{'
+    close_b, // '{'
 };
 
 struct Token {
@@ -112,6 +114,12 @@ inline void print_token_type(const TokenType& type)
         break;
     case TokenType::minus:
         std::cout << "minus" << std::endl;
+        break;
+    case TokenType::open_b:
+        std::cout << "opening brace" << std::endl;
+        break;
+    case TokenType::close_b:
+        std::cout << "closing brace" << std::endl;
         break;
     }
 }
@@ -246,6 +254,18 @@ class Lexer {
         {
             take();
             tokens.push_back({TokenType::fslash, lc});
+            return true;
+        }
+        else if(peek().has_value() && peek().value() == '{')
+        {
+            take();
+            tokens.push_back({TokenType::open_b, lc});
+            return true;
+        }
+        else if(peek().has_value() && peek().value() == '}')
+        {
+            take();
+            tokens.push_back({TokenType::close_b, lc});
             return true;
         }
         return false;
