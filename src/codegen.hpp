@@ -1,24 +1,12 @@
 #ifndef CODEGEN_HPP
 #define CODEGEN_HPP
 
-#include "parser.hpp"
+#include "nodes.hpp"
 #include <algorithm>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <unordered_map>
-
-inline std::string print_type(Type type)
-{
-    switch(type)
-    {
-    case Type::_int:
-        return "int";
-        break;
-    default:
-        return "undefined";
-        break;
-    }
-}
 
 class Generator {
   public:
@@ -49,27 +37,28 @@ class Generator {
         }
         else if(stmt->var.index() == 1) // Variable
         {
-            code << "    ; Declaring variable\n";
+            
             NodeStmtVar* var = std::get<NodeStmtVar*>(stmt->var);
             if(var_declared(var->ident.val.value()))
             {
                 std::cerr << "Error: Identifier '" << var->ident.val.value() << "' has already been declared on line " << get_var(var->ident.val.value()).line << ", but was declared again on line " << var->ident.line << std::endl;
                 exit(EXIT_FAILURE);
             }
+            code << "    ;; Declaring variable " << '\'' << var->ident.val.value() << '\'' << " of type " << print_type(var->type) << '\n';
             vars.push_back({var->ident.val.value(), sp, var->type, var->ident.line});
             gen_expr(var->expr);
         }
         else if(stmt->var.index() == 2) // Scope
         {
-            code << "    ; Entering scope\n";
+            code << "    ;; Entering scope\n";
             NodeScope* scope = std::get<NodeScope*>(stmt->var);
             size_t vars_size = vars.size();
             for(int i = 0; i < scope->stmts.size(); i++) { gen_stmt(scope->stmts.at(i)); }
             size_t pop = vars.size() - vars_size;
             if(pop > 0)
             {
-                code << "    ; Exiting scope\n";
-                code << "    add rsp, " << pop * 8 << "\n";
+                code << "    ;; Exiting scope\n";
+                code << "    add rsp, " << pop * 8 << "\n\n";
                 sp -= pop;
             }
             for(int i = 0; i < pop; i++) { vars.pop_back(); }
@@ -112,6 +101,7 @@ class Generator {
             }
             const Var& var = get_var(ident->ident.val.value());
             std::stringstream offset;
+            code << "    ;; Loading variable '" << var.name << "'\n";
             offset << "QWORD [rsp + " << (sp - var.stackl - 1) * 8 << "]";
             push(offset.str());
             code << "\n";
@@ -232,6 +222,7 @@ class Generator {
                 exit(EXIT_FAILURE);
             }
             std::stringstream offset;
+            code << "    ;; Loading variable '" << var.name << "'\n";
             offset << "QWORD [rsp + " << (sp - var.stackl - 1) * 8 << "]";
             push(offset.str());
             code << "\n";
