@@ -7,10 +7,17 @@ Some parts of Verox
 ### Operators
 
 * **;**
+* **{**
+* **}**
+
+### Binary operators
+
 * **+**
 * **-**
 * **\***
 * **/**
+* **(**
+* **)**
 
 ### Keywords
 
@@ -28,6 +35,12 @@ Some parts of Verox
 The following is a simple program using most features available.
 
 ```cpp
+{
+    int y = 2;
+    int x = 1;
+    int z = 3;
+}
+
 int y = 10 * (2 + 3);
 int x = 7;
 int z = y - x;
