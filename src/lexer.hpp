@@ -7,21 +7,31 @@
 #include <vector>
 
 enum class TokenType {
-    ret,     // return -> internal
-    i_int,   // immediate int
-    semi,    // ';'
-    type,    // a typename
-    ident,   // a variable name
-    assign,  // '='
-    open_p,  // '('
-    close_p, // ')'
-    print,   // print -> internal
-    add,     // '+'
-    star,    // '*'
-    fslash,  // '/'
-    minus,   // '-'
-    open_b,  // '{'
-    close_b, // '{'
+    _ret,           // return -> internal
+    _i_int,         // immediate int
+    _true,          // boolean true
+    _false,         // boolean false
+    _semi,          // ';'
+    _type,          // a typename
+    _ident,         // a variable name
+    _assign,        // '='
+    _open_p,        // '('
+    _close_p,       // ')'
+    _print,         // print -> internal
+    _add,           // '+'
+    _star,          // '*'
+    _fslash,        // '/'
+    _minus,         // '-'
+    _open_b,        // '{'
+    _close_b,       // '{'
+    _or,            // '||'
+    _and,           // '&&'
+    _not,           // '!'
+    _eq,            // '=='
+    _greater,       // '>'
+    _less,          // '<'
+    _greater_eq,    // '>='
+    _less_eq,       // '<='
 };
 
 struct Token {
@@ -37,34 +47,34 @@ inline void print_tokens(const std::vector<Token>& tokens)
         std::cout << "Next token: " << std::endl;
         switch(tokens[i].type)
         {
-        case TokenType::i_int:
+        case TokenType::_i_int:
             std::cout << "i_int: " << tokens[i].val.value() << std::endl;
             break;
-        case TokenType::ret:
+        case TokenType::_ret:
             std::cout << "return" << std::endl;
             break;
-        case TokenType::semi:
+        case TokenType::_semi:
             std::cout << "semicolon" << std::endl;
             break;
-        case TokenType::type:
+        case TokenType::_type:
             std::cout << "type: " << tokens[i].val.value() << std::endl;
             break;
-        case TokenType::ident:
+        case TokenType::_ident:
             std::cout << "identifier: " << tokens[i].val.value() << std::endl;
             break;
-        case TokenType::assign:
+        case TokenType::_assign:
             std::cout << "assignment" << std::endl;
             break;
-        case TokenType::close_p:
+        case TokenType::_close_p:
             std::cout << ")" << std::endl;
             break;
-        case TokenType::open_p:
+        case TokenType::_open_p:
             std::cout << "(" << std::endl;
             break;
-        case TokenType::print:
+        case TokenType::_print:
             std::cout << "print" << std::endl;
             break;
-        case TokenType::add:
+        case TokenType::_add:
             std::cout << "+" << std::endl;
         default:
             break;
@@ -76,51 +86,59 @@ inline void print_token_type(const TokenType& type)
 {
     switch(type)
     {
-    case TokenType::ret:
+    case TokenType::_ret:
         std::cout << "return" << std::endl;
         break;
-    case TokenType::i_int:
+    case TokenType::_i_int:
         std::cout << "i_int" << std::endl;
         break;
-    case TokenType::semi:
+    case TokenType::_semi:
         std::cout << "semicolon" << std::endl;
         break;
-    case TokenType::type:
+    case TokenType::_type:
         std::cout << "type" << std::endl;
         break;
-    case TokenType::ident:
+    case TokenType::_ident:
         std::cout << "identifier" << std::endl;
         break;
-    case TokenType::assign:
+    case TokenType::_assign:
         std::cout << "assignment" << std::endl;
         break;
-    case TokenType::open_p:
+    case TokenType::_open_p:
         std::cout << "opening parenthesis" << std::endl;
         break;
-    case TokenType::close_p:
+    case TokenType::_close_p:
         std::cout << "closing parenthesis" << std::endl;
         break;
-    case TokenType::print:
+    case TokenType::_print:
         std::cout << "print" << std::endl;
         break;
-    case TokenType::add:
+    case TokenType::_add:
         std::cout << "add" << std::endl;
         break;
-    case TokenType::star:
+    case TokenType::_star:
         std::cout << "star" << std::endl;
         break;
-    case TokenType::fslash:
+    case TokenType::_fslash:
         std::cout << "forward slash" << std::endl;
         break;
-    case TokenType::minus:
+    case TokenType::_minus:
         std::cout << "minus" << std::endl;
         break;
-    case TokenType::open_b:
+    case TokenType::_open_b:
         std::cout << "opening brace" << std::endl;
         break;
-    case TokenType::close_b:
+    case TokenType::_close_b:
         std::cout << "closing brace" << std::endl;
         break;
+    case TokenType::_true:
+        std::cout << "true" << std::endl;
+        break;
+    case TokenType::_false:
+        std::cout << "false" << std::endl;
+        break;
+    default:
+        std::cout << "I forgot or what the fuck is this?" << std::endl;
     }
 }
 
@@ -156,25 +174,43 @@ class Lexer {
             while(peek().has_value() && std::isalnum(peek().value())) { buf.push_back(take()); }
             if(buf == "return")
             {
-                tokens.push_back({TokenType::ret, lc});
+                tokens.push_back({TokenType::_ret, lc});
                 buf.clear();
                 return true;
             }
             else if(buf == "int")
             {
-                tokens.push_back({TokenType::type, lc, buf});
+                tokens.push_back({TokenType::_type, lc, buf});
                 buf.clear();
                 return true;
             }
             else if(buf == "print")
             {
-                tokens.push_back({TokenType::print, lc});
+                tokens.push_back({TokenType::_print, lc});
+                buf.clear();
+                return true;
+            }
+            else if(buf == "true")
+            {
+                tokens.push_back({TokenType::_true, lc, buf});
+                buf.clear();
+                return true;
+            }
+            else if(buf == "false")
+            {
+                tokens.push_back({TokenType::_true, lc, buf});
+                buf.clear();
+                return true;
+            }
+            else if(buf == "bool")
+            {
+                tokens.push_back({TokenType::_type, lc, buf});
                 buf.clear();
                 return true;
             }
             else
             {
-                tokens.push_back({TokenType::ident, lc, buf});
+                tokens.push_back({TokenType::_ident, lc, buf});
                 buf.clear();
                 return true;
             }
@@ -188,7 +224,7 @@ class Lexer {
         {
             buf.push_back(take());
             while(peek().has_value() && std::isdigit(peek().value())) { buf.push_back(take()); }
-            tokens.push_back({TokenType::i_int, lc, buf});
+            tokens.push_back({TokenType::_i_int, lc, buf});
             buf.clear();
             return true;
         }
@@ -200,13 +236,19 @@ class Lexer {
         if(peek().has_value() && peek().value() == ';')
         {
             take();
-            tokens.push_back({TokenType::semi, lc});
+            tokens.push_back({TokenType::_semi, lc});
             return true;
         }
         else if(peek().has_value() && peek().value() == '=')
         {
             take();
-            tokens.push_back({TokenType::assign, lc});
+            if(peek().has_value() && peek().value() == '=')
+            {
+                take();
+                tokens.push_back({TokenType::_eq, lc});
+                return true;
+            }
+            tokens.push_back({TokenType::_assign, lc});
             return true;
         }
         else if(peek().has_value() && peek().value() == '\n')
@@ -218,13 +260,13 @@ class Lexer {
         else if(peek().has_value() && peek().value() == '(')
         {
             take();
-            tokens.push_back({TokenType::open_p, lc});
+            tokens.push_back({TokenType::_open_p, lc});
             return true;
         }
         else if(peek().has_value() && peek().value() == ')')
         {
             take();
-            tokens.push_back({TokenType::close_p, lc});
+            tokens.push_back({TokenType::_close_p, lc});
             return true;
         }
         else if(peek().has_value() && std::isspace(peek().value()))
@@ -235,39 +277,88 @@ class Lexer {
         else if(peek().has_value() && peek().value() == '+')
         {
             take();
-            tokens.push_back({TokenType::add, lc});
+            tokens.push_back({TokenType::_add, lc});
             return true;
         }
         else if(peek().has_value() && peek().value() == '-')
         {
             take();
-            tokens.push_back({TokenType::minus, lc});
+            tokens.push_back({TokenType::_minus, lc});
             return true;
         }
         else if(peek().has_value() && peek().value() == '*')
         {
             take();
-            tokens.push_back({TokenType::star, lc});
+            tokens.push_back({TokenType::_star, lc});
             return true;
         }
         else if(peek().has_value() && peek().value() == '/')
         {
             take();
-            tokens.push_back({TokenType::fslash, lc});
+            tokens.push_back({TokenType::_fslash, lc});
             return true;
         }
         else if(peek().has_value() && peek().value() == '{')
         {
             take();
-            tokens.push_back({TokenType::open_b, lc});
+            tokens.push_back({TokenType::_open_b, lc});
             return true;
         }
         else if(peek().has_value() && peek().value() == '}')
         {
             take();
-            tokens.push_back({TokenType::close_b, lc});
+            tokens.push_back({TokenType::_close_b, lc});
             return true;
         }
+        else if(peek().has_value() && peek().value() == '>')
+        {
+            take();
+            if(peek().has_value() && peek().value() == '=')
+            {
+                take();
+                tokens.push_back({TokenType::_greater_eq, lc});
+                return true;
+            }
+            tokens.push_back({TokenType::_greater, lc});
+            return true;
+        }
+        else if(peek().has_value() && peek().value() == '<')
+        {
+            take();
+            if(peek().has_value() && peek().value() == '=')
+            {
+                take();
+                tokens.push_back({TokenType::_less_eq, lc});
+                return true;
+            }
+            tokens.push_back({TokenType::_less, lc});
+            return true;
+        }
+        else if(peek().has_value() && peek().value() == '&')
+        {
+            take();
+            if(peek().has_value() && peek().value() == '&') {
+                take();
+                tokens.push_back({TokenType::_and, lc});
+                return true;
+            }
+        }
+        else if(peek().has_value() && peek().value() == '|')
+        {
+            take();
+            if(peek().has_value() && peek().value() == '|') {
+                take();
+                tokens.push_back({TokenType::_or, lc});
+                return true;
+            }
+        }
+        else if(peek().has_value() && peek().value() == '!')
+        {
+            take();
+            tokens.push_back({TokenType::_not, lc});
+            return true;
+        }
+        
         return false;
     }
 

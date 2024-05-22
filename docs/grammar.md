@@ -1,5 +1,5 @@
 # Grammar
-$$ 
+$$
 \begin{align}
     \text{[Prog]} &\to \text{[stmt]}^* \\
     \text{[stmt]} &\to

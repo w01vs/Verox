@@ -68,7 +68,7 @@ class Generator {
             size_t pop = vars.size() - vars_size;
             if(pop > 0)
             {
-                code <<"    ; Exiting scope\n";
+                code << "    ; Exiting scope\n";
                 code << "    add rsp, " << pop * 8 << "\n";
                 sp -= pop;
             }
@@ -78,19 +78,29 @@ class Generator {
 
     void gen_expr(const NodeExpr* expr)
     {
-        if(expr->var.index() == 0) // Term
+        if(expr->var.index() == 0) // BinTerm
         {
-            NodeTerm* term = std::get<NodeTerm*>(expr->var);
-            gen_term(term);
+            NodeBinTerm* term = std::get<NodeBinTerm*>(expr->var);
+            gen_binary_term(term);
         }
-        if(expr->var.index() == 1) // BinExpr
+        else if(expr->var.index() == 1) // BinExpr
         {
             NodeBinExpr* binexpr = std::get<NodeBinExpr*>(expr->var);
-            gen_bexpr(binexpr);
+            gen_binary_expression(binexpr);
+        }
+        else if(expr->var.index() == 2) // LogicTerm
+        {
+            NodeLogicTerm* term = std::get<NodeLogicTerm*>(expr->var);
+            gen_logic_term(term);
+        }
+        else if(expr->var.index() == 3) // LogicExpr
+        {
+            NodeLogicExpr* logic = std::get<NodeLogicExpr*>(expr->var);
+            gen_logic_expression(logic);
         }
     }
 
-    void gen_term(const NodeTerm* term)
+    void gen_binary_term(const NodeBinTerm* term)
     {
         if(term->val.index() == 0) // Identifier
         {
@@ -151,7 +161,7 @@ class Generator {
         std::visit(visitor, internal->ret);
     }
 
-    void gen_bexpr(const NodeBinExpr* binexpr)
+    void gen_binary_expression(const NodeBinExpr* binexpr)
     {
         if(binexpr->val.index() == 0) // Add
         {
@@ -164,7 +174,7 @@ class Generator {
             push("rax");
             code << "\n";
         }
-        else if (binexpr->val.index() == 1) // Division
+        else if(binexpr->val.index() == 1) // Division
         {
             NodeBinExprDiv* div = std::get<NodeBinExprDiv*>(binexpr->val);
             gen_expr(div->lhs);
@@ -176,7 +186,7 @@ class Generator {
             push("rax");
             code << "\n";
         }
-        else if (binexpr->val.index() == 2) // Subtraction
+        else if(binexpr->val.index() == 2) // Subtraction
         {
             NodeBinExprSub* sub = std::get<NodeBinExprSub*>(binexpr->val);
             gen_expr(sub->lhs);
@@ -187,7 +197,7 @@ class Generator {
             push("rax");
             code << "\n";
         }
-        else if (binexpr->val.index() == 3) // Multiplication
+        else if(binexpr->val.index() == 3) // Multiplication
         {
             NodeBinExprMult* mul = std::get<NodeBinExprMult*>(binexpr->val);
             gen_expr(mul->lhs);
@@ -198,9 +208,72 @@ class Generator {
             push("rax");
             code << "\n";
         }
-        else {
+        else
+        {
             std::cerr << "Error: Unknown binary expression" << std::endl;
             exit(EXIT_FAILURE);
+        }
+    }
+
+    void gen_logic_term(const NodeLogicTerm* term)
+    {
+        if(term->val.index() == 0) // Identifier
+        {
+            NodeExprIdent* ident = std::get<NodeExprIdent*>(term->val);
+            if(!var_declared(ident->ident.val.value()))
+            {
+                std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            const Var& var = get_var(ident->ident.val.value());
+            if(var.type != Type::_bool)
+            {
+                std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'bool' on line " << ident->ident.line << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            std::stringstream offset;
+            offset << "QWORD [rsp + " << (sp - var.stackl - 1) * 8 << "]";
+            push(offset.str());
+            code << "\n";
+        }
+        else if(term->val.index() == 1) // Boolean
+        {
+            NodeExprBool* i_int = std::get<NodeExprBool*>(term->val);
+            int res = i_int->boolean.type == TokenType::_true ? 1 : 0;
+            code << "    mov rax, " << res << "\n";
+            push("rax");
+            code << "\n";
+        }
+        else if(term->val.index() == 2) // Parentheses
+        {
+            NodeTermParens* paren = std::get<NodeTermParens*>(term->val);
+            gen_expr(paren->expr);
+        }
+    }
+
+    void gen_logic_expression(const NodeLogicExpr* expr)
+    {
+        if(expr->val.index() == 0) // And
+        {
+            NodeLogicExprAnd* and_expr = std::get<NodeLogicExprAnd*>(expr->val);
+            gen_expr(and_expr->lhs);
+            gen_expr(and_expr->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    and rax, rdi\n";
+            push("rax");
+            code << "\n";
+        }
+        else if(expr->val.index() == 1) // Or
+        { 
+            NodeLogicExprOr* or_expr = std::get<NodeLogicExprOr*>(expr->val);
+            gen_expr(or_expr->lhs);
+            gen_expr(or_expr->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    or rax, rdi\n";
+            push("rax");
+            code << "\n";
         }
     }
 
@@ -223,13 +296,9 @@ class Generator {
     std::vector<Var> vars;
     std::unordered_map<std::string, bool> internals_called;
 
-    bool var_declared(std::string identifier) {
-        return std::ranges::find(vars, identifier, &Var::name) != vars.end();
-    };
+    bool var_declared(std::string identifier) { return std::ranges::find(vars, identifier, &Var::name) != vars.end(); };
 
-    Var get_var(std::string identifier) {
-        return *std::ranges::find(vars, identifier, &Var::name);
-    };
+    Var get_var(std::string identifier) { return *std::ranges::find(vars, identifier, &Var::name); };
 
     void gen_ret()
     {

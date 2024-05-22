@@ -1,9 +1,10 @@
 {
     {
-        int p =6 ;
+        int p = 6;
     }
     int p = 5;
 }
 
 int p = 7;
+bool x = true;
 return p;
