@@ -12,7 +12,7 @@ class Generator {
   public:
     explicit Generator(const NodeProg* root) : root(root) {}
 
-    std::string gen_prog()
+    inline std::string gen_prog()
     {
         ext << "global main\nsection .text\n";
         code << "main:\n";
@@ -28,7 +28,7 @@ class Generator {
         return data.str();
     }
 
-    void gen_stmt(const NodeStmt* stmt)
+    inline void gen_stmt(const NodeStmt* stmt)
     {
         if(stmt->var.index() == 0) // Internal
         {
@@ -37,7 +37,7 @@ class Generator {
         }
         else if(stmt->var.index() == 1) // Variable
         {
-            
+
             NodeStmtVar* var = std::get<NodeStmtVar*>(stmt->var);
             if(var_declared(var->ident.val.value()))
             {
@@ -50,22 +50,27 @@ class Generator {
         }
         else if(stmt->var.index() == 2) // Scope
         {
-            code << "    ;; Entering scope\n";
             NodeScope* scope = std::get<NodeScope*>(stmt->var);
-            size_t vars_size = vars.size();
-            for(int i = 0; i < scope->stmts.size(); i++) { gen_stmt(scope->stmts.at(i)); }
-            size_t pop = vars.size() - vars_size;
-            if(pop > 0)
-            {
-                code << "    ;; Exiting scope\n";
-                code << "    add rsp, " << pop * 8 << "\n\n";
-                sp -= pop;
-            }
-            for(int i = 0; i < pop; i++) { vars.pop_back(); }
+            gen_scope(scope);
         }
     }
 
-    void gen_expr(const NodeExpr* expr)
+    inline void gen_scope(const NodeScope* scope)
+    {
+        code << "    ;; Entering scope\n";
+        size_t vars_size = vars.size();
+        for(int i = 0; i < scope->stmts.size(); i++) { gen_stmt(scope->stmts.at(i)); }
+        size_t pop = vars.size() - vars_size;
+        if(pop > 0)
+        {
+            code << "    ;; Exiting scope\n";
+            code << "    add rsp, " << pop * 8 << "\n\n";
+            sp -= pop;
+        }
+        for(int i = 0; i < pop; i++) { vars.pop_back(); }
+    }
+
+    inline void gen_expr(const NodeExpr* expr)
     {
         if(expr->var.index() == 0) // BinTerm
         {
@@ -87,13 +92,18 @@ class Generator {
             NodeLogicExpr* logic = std::get<NodeLogicExpr*>(expr->var);
             gen_logic_expression(logic);
         }
+        else if(expr->var.index() == 4) // CompExpr
+        {
+            NodeCompExpr* comp = std::get<NodeCompExpr*>(expr->var);
+            gen_comp_expression(comp);
+        }
     }
 
-    void gen_binary_term(const NodeBinTerm* term)
+    inline void gen_binary_term(const NodeBinTerm* term)
     {
         if(term->val.index() == 0) // Identifier
         {
-            NodeExprIdent* ident = std::get<NodeExprIdent*>(term->val);
+            NodeIdent* ident = std::get<NodeIdent*>(term->val);
             if(!var_declared(ident->ident.val.value()))
             {
                 std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
@@ -108,7 +118,7 @@ class Generator {
         }
         else if(term->val.index() == 1) // Immediate Int
         {
-            NodeExprIInt* i_int = std::get<NodeExprIInt*>(term->val);
+            NodeIntLit* i_int = std::get<NodeIntLit*>(term->val);
             code << "    mov rax, " << i_int->i_int.val.value() << "\n";
             push("rax");
             code << "\n";
@@ -120,7 +130,7 @@ class Generator {
         }
     }
 
-    void gen_internal(const NodeInternal* internal)
+    inline void gen_internal(const NodeInternal* internal)
     {
         struct InternalVisitor {
             Generator* const gen;
@@ -151,7 +161,7 @@ class Generator {
         std::visit(visitor, internal->ret);
     }
 
-    void gen_binary_expression(const NodeBinExpr* binexpr)
+    inline void gen_binary_expression(const NodeBinExpr* binexpr)
     {
         if(binexpr->val.index() == 0) // Add
         {
@@ -205,11 +215,84 @@ class Generator {
         }
     }
 
-    void gen_logic_term(const NodeLogicTerm* term)
+    inline void gen_comp_expression(const NodeCompExpr* comp)
+    {
+        if(comp->val.index() == 0) // Equal
+        {
+            NodeCompExprEq* eq = std::get<NodeCompExprEq*>(comp->val);
+            gen_binary_term(eq->lhs);
+            gen_binary_term(eq->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    cmp rax, rdi\n";
+            code << "    sete al\n";
+            code << "    movzx rax, al\n";
+            push("rax");
+            code << "\n";
+        }
+        else if(comp->val.index() == 1) // Greater
+        {
+            NodeCompExprGreater* greater = std::get<NodeCompExprGreater*>(comp->val);
+            gen_binary_term(greater->lhs);
+            gen_binary_term(greater->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    cmp rax, rdi\n";
+            code << "    setg al\n";
+            code << "    movzx rax, al\n";
+            push("rax");
+            code << "\n";
+        }
+        else if(comp->val.index() == 2) // Less
+        {
+            NodeCompExprLess* less = std::get<NodeCompExprLess*>(comp->val);
+            gen_binary_term(less->lhs);
+            gen_binary_term(less->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    cmp rax, rdi\n";
+            code << "    setl al\n";
+            code << "    movzx rax, al\n";
+            push("rax");
+            code << "\n";
+        }
+        else if(comp->val.index() == 3) // Greater or Equal
+        {
+            NodeCompExprGreaterEq* greater_eq = std::get<NodeCompExprGreaterEq*>(comp->val);
+            gen_binary_term(greater_eq->lhs);
+            gen_binary_term(greater_eq->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    cmp rax, rdi\n";
+            code << "    setge al\n";
+            code << "    movzx rax, al\n";
+            push("rax");
+            code << "\n";
+        }
+        else if(comp->val.index() == 4) // Less or Equal
+        {
+            NodeCompExprLessEq* less_eq = std::get<NodeCompExprLessEq*>(comp->val);
+        }
+        else if(comp->val.index() == 5) // Not Equal
+        {
+            NodeCompExprNeq* neq = std::get<NodeCompExprNeq*>(comp->val);
+            gen_binary_term(neq->lhs);
+            gen_binary_term(neq->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    cmp rax, rdi\n";
+            code << "    setne al\n";
+            code << "    movzx rax, al\n";
+            push("rax");
+            code << "\n";
+        }
+    }
+
+    inline void gen_logic_term(const NodeLogicTerm* term)
     {
         if(term->val.index() == 0) // Identifier
         {
-            NodeExprIdent* ident = std::get<NodeExprIdent*>(term->val);
+            NodeIdent* ident = std::get<NodeIdent*>(term->val);
             if(!var_declared(ident->ident.val.value()))
             {
                 std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
@@ -229,9 +312,10 @@ class Generator {
         }
         else if(term->val.index() == 1) // Boolean
         {
-            NodeExprBool* i_int = std::get<NodeExprBool*>(term->val);
-            int res = i_int->boolean.type == TokenType::_true ? 1 : 0;
-            code << "    mov rax, " << res << "\n";
+            NodeBool* i_int = std::get<NodeBool*>(term->val);
+            code << "    xor rax, rax\n";
+            if(i_int->boolean.type == TokenType::_true)
+                code << "    mov rax, 1\n";
             push("rax");
             code << "\n";
         }
@@ -240,9 +324,15 @@ class Generator {
             NodeTermParens* paren = std::get<NodeTermParens*>(term->val);
             gen_expr(paren->expr);
         }
+        else if(term->val.index() == 3) // CompExpr
+        {
+            NodeCompExpr* comp = std::get<NodeCompExpr*>(term->val);
+            gen_comp_expression(comp);
+        }
     }
 
-    void gen_logic_expression(const NodeLogicExpr* expr)
+    // ONLY boolean logic
+    inline void gen_logic_expression(const NodeLogicExpr* expr)
     {
         if(expr->val.index() == 0) // And
         {
@@ -256,13 +346,35 @@ class Generator {
             code << "\n";
         }
         else if(expr->val.index() == 1) // Or
-        { 
+        {
             NodeLogicExprOr* or_expr = std::get<NodeLogicExprOr*>(expr->val);
             gen_expr(or_expr->lhs);
             gen_expr(or_expr->rhs);
             pop("rdi");
             pop("rax");
             code << "    or rax, rdi\n";
+            push("rax");
+            code << "\n";
+        }
+        else if(expr->val.index() == 2) // Not
+        {
+            NodeLogicExprNot* not_expr = std::get<NodeLogicExprNot*>(expr->val);
+            gen_expr(not_expr->expr);
+            pop("rax");
+            code << "    not rax\n";
+            push("rax");
+            code << "\n";
+        }
+        else if(expr->val.index() == 3) // Eq
+        {
+            NodeLogicExprEq* eq_expr = std::get<NodeLogicExprEq*>(expr->val);
+            gen_expr(eq_expr->lhs);
+            gen_expr(eq_expr->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    cmp rax, rdi\n";
+            code << "    sete al\n";
+            code << "    movzx rax, al\n";
             push("rax");
             code << "\n";
         }

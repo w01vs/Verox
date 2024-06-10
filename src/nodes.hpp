@@ -5,15 +5,15 @@
 #include <vector>
 #include "type.hpp"
 
-struct NodeExprIInt {
+struct NodeIntLit {
     Token i_int; // immediate int
 };
 
-struct NodeExprIdent {
+struct NodeIdent {
     Token ident; // var name
 };
 
-struct NodeExprBool {
+struct NodeBool {
     Token boolean; // boolean value
 };
 
@@ -21,19 +21,55 @@ struct NodeExprBool {
 struct NodeTermParens;
 
 struct NodeBinTerm {
-    std::variant<NodeExprIdent*, NodeExprIInt*, NodeTermParens*> val;
+    std::variant<NodeIdent*, NodeIntLit*, NodeTermParens*> val;
 };
 
+struct NodeCompExpr; 
+
 struct NodeLogicTerm {
-    std::variant<NodeExprIdent*, NodeExprBool*, NodeTermParens*> val;
+    std::variant<NodeIdent*, NodeBool*, NodeTermParens*, NodeCompExpr*> val;
 };
 
 // Forward declarations
 struct NodeBinExpr;
 struct NodeLogicExpr;
 
+struct NodeCompExprEq {
+    NodeBinTerm* lhs;
+    NodeBinTerm* rhs;
+};
+
+struct NodeCompExprGreater {
+    NodeBinTerm* lhs;
+    NodeBinTerm* rhs;
+};
+
+struct NodeCompExprLess {
+    NodeBinTerm* lhs;
+    NodeBinTerm* rhs;
+};
+
+struct NodeCompExprGreaterEq {
+    NodeBinTerm* lhs;
+    NodeBinTerm* rhs;
+};
+
+struct NodeCompExprLessEq {
+    NodeBinTerm* lhs;
+    NodeBinTerm* rhs;
+};
+
+struct NodeCompExprNeq {
+    NodeBinTerm* lhs;
+    NodeBinTerm* rhs;
+};
+
+struct NodeCompExpr {
+    std::variant<NodeCompExprEq*, NodeCompExprGreater*, NodeCompExprLess*, NodeCompExprGreaterEq*, NodeCompExprLessEq*, NodeCompExprNeq*> val;
+};
+
 struct NodeExpr {
-    std::variant<NodeBinTerm*, NodeBinExpr*, NodeLogicTerm*, NodeLogicExpr*> var;
+    std::variant<NodeBinTerm*, NodeBinExpr*, NodeLogicTerm*, NodeLogicExpr*, NodeCompExpr*> var;
     std::optional<Type> type;
 };
 
@@ -80,31 +116,6 @@ struct NodeBinExprSub {
 };
 
 struct NodeBinExprDiv {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBinExprEq {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBinExprGreater {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBinExprLess {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBinExprGreaterEq {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
-struct NodeBinExprLessEq {
     NodeExpr* lhs;
     NodeExpr* rhs;
 };

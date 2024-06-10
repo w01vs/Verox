@@ -33,6 +33,7 @@ int main(int argc, char* argv[])
 
     Lexer lexer(to_compile);
     std::vector<Token> t = lexer.to_tokens();
+    // print_tokens(t);
 
     Parser parser(t);
     std::optional<NodeProg*> tree = parser.parse();

@@ -7,48 +7,6 @@
 #include <vector>
 #include "token.hpp"
 
-inline void print_tokens(const std::vector<Token>& tokens)
-{
-    for(int i = 0; i < tokens.size(); i++)
-    {
-        std::cout << "Next token: " << std::endl;
-        switch(tokens[i].type)
-        {
-        case TokenType::_i_int:
-            std::cout << "i_int: " << tokens[i].val.value() << std::endl;
-            break;
-        case TokenType::_ret:
-            std::cout << "return" << std::endl;
-            break;
-        case TokenType::_semi:
-            std::cout << "semicolon" << std::endl;
-            break;
-        case TokenType::_type:
-            std::cout << "type: " << tokens[i].val.value() << std::endl;
-            break;
-        case TokenType::_ident:
-            std::cout << "identifier: " << tokens[i].val.value() << std::endl;
-            break;
-        case TokenType::_assign:
-            std::cout << "assignment" << std::endl;
-            break;
-        case TokenType::_close_p:
-            std::cout << ")" << std::endl;
-            break;
-        case TokenType::_open_p:
-            std::cout << "(" << std::endl;
-            break;
-        case TokenType::_print:
-            std::cout << "print" << std::endl;
-            break;
-        case TokenType::_add:
-            std::cout << "+" << std::endl;
-        default:
-            break;
-        }
-    }
-}
-
 inline void print_token_type(const TokenType& type)
 {
     switch(type)
@@ -56,7 +14,7 @@ inline void print_token_type(const TokenType& type)
     case TokenType::_ret:
         std::cout << "return" << std::endl;
         break;
-    case TokenType::_i_int:
+    case TokenType::_int_lit:
         std::cout << "i_int" << std::endl;
         break;
     case TokenType::_semi:
@@ -104,8 +62,44 @@ inline void print_token_type(const TokenType& type)
     case TokenType::_false:
         std::cout << "false" << std::endl;
         break;
+    case TokenType::_or:
+        std::cout << "or" << std::endl;
+        break;
+    case TokenType::_and:
+        std::cout << "and" << std::endl;
+        break;
+    case TokenType::_not:
+        std::cout << "not" << std::endl;
+        break;
+    case TokenType::_eq:
+        std::cout << "equal" << std::endl;
+        break;
+    case TokenType::_greater:
+        std::cout << "greater" << std::endl;
+        break;
+    case TokenType::_less:
+        std::cout << "less" << std::endl;
+        break;
+    case TokenType::_greater_eq:
+        std::cout << "greater or equal" << std::endl;
+        break;
+    case TokenType::_less_eq:
+        std::cout << "less or equal" << std::endl;
+        break;
+    case TokenType::_neq:
+        std::cout << "not equal" << std::endl;
+        break;
     default:
         std::cout << "I forgot or what the fuck is this?" << std::endl;
+    }
+}
+
+inline void print_tokens(const std::vector<Token>& tokens)
+{
+    for(int i = 0; i < tokens.size(); i++)
+    {
+        std::cout << "Next token: " << std::endl;
+        print_token_type(tokens[i].type);
     }
 }
 
@@ -165,7 +159,7 @@ class Lexer {
             }
             else if(buf == "false")
             {
-                tokens.push_back({TokenType::_true, lc, buf});
+                tokens.push_back({TokenType::_false, lc, buf});
                 buf.clear();
                 return true;
             }
@@ -191,7 +185,7 @@ class Lexer {
         {
             buf.push_back(take());
             while(peek().has_value() && std::isdigit(peek().value())) { buf.push_back(take()); }
-            tokens.push_back({TokenType::_i_int, lc, buf});
+            tokens.push_back({TokenType::_int_lit, lc, buf});
             buf.clear();
             return true;
         }
