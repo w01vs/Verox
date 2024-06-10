@@ -87,13 +87,8 @@ struct NodeLogicExprNot {
     NodeExpr* expr;
 };
 
-struct NodeLogicExprEq {
-    NodeExpr* lhs;
-    NodeExpr* rhs;
-};
-
 struct NodeLogicExpr {
-    std::variant<NodeLogicExprAnd*, NodeLogicExprOr*, NodeLogicExprNot*, NodeLogicExprEq*> val;
+    std::variant<NodeLogicExprAnd*, NodeLogicExprOr*, NodeLogicExprNot*> val;
 };
 
 struct NodeTermParens {

@@ -365,19 +365,6 @@ class Generator {
             push("rax");
             code << "\n";
         }
-        else if(expr->val.index() == 3) // Eq
-        {
-            NodeLogicExprEq* eq_expr = std::get<NodeLogicExprEq*>(expr->val);
-            gen_expr(eq_expr->lhs);
-            gen_expr(eq_expr->rhs);
-            pop("rdi");
-            pop("rax");
-            code << "    cmp rax, rdi\n";
-            code << "    sete al\n";
-            code << "    movzx rax, al\n";
-            push("rax");
-            code << "\n";
-        }
     }
 
   private:
