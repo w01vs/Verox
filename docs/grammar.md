@@ -1,4 +1,5 @@
 # Grammar
+
 $$
 \begin{align}
     \text{[Prog]} &\to \text{[stmt]}^* \\
