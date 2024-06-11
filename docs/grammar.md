@@ -7,10 +7,12 @@ $$
         \begin{cases}
         return \text{ [Expr];} \\
         \text{[type]} \text{ [ident]} = \text{[Expr]}; \\
-        \text{[scope]}
+        \text{[scope]} \\
+        \text{[if]}
         \end{cases} \\
     \text{[scope]} &\to [stmt]^*\\
     \text{[return]} &\to return\text{ [Expr]}; \\
+    \text{[if]} &\to \text{([LogicExpr])} => [stmt]^* \\
     \text{[Expr]} &\to
     \begin{cases}
         \text{[Term]} \\

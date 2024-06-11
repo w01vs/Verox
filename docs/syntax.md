@@ -37,6 +37,7 @@ Some parts of Verox
 ### Keywords
 
 * **return**
+* **if**
 
 #### Types
 
@@ -63,5 +64,7 @@ The following is a simple program using most features available.
 int y = 10 * (2 + 3);
 int x = 7;
 int z = y - x;
+
+if(z < y) { return x;}
 return z;
 ```
