@@ -507,6 +507,52 @@ class Parser {
                 auto stmt = arena.emplace<NodeStmt>(scope);
                 return stmt;
             }
+            else if(auto _if = try_take(TokenType::_if))
+            {
+                if(auto open_p = try_take(TokenType::_open_p))
+                {
+                    if(auto expr = parse_logic_expr())
+                    {
+                        if(auto close_p = try_take(TokenType::_close_p))
+                        {
+                            if(auto bracket = try_take(TokenType::_open_b))
+                            {
+                                if(auto scope = parse_scope())
+                                {
+                                    auto if_ = arena.emplace<NodeIf>(expr.value(), scope);
+                                    auto stmt = arena.emplace<NodeStmt>(if_);
+                                    return stmt;
+                                }
+                                else
+                                {
+                                    std::cerr << "SyntaxError: Expected scope on line " << peek().value().line << std::endl;
+                                    exit(EXIT_FAILURE);
+                                }
+                            }
+                            else
+                            {
+                                std::cerr << "SyntaxError: Expected '{' on line " << peek().value().line << std::endl;
+                                exit(EXIT_FAILURE);
+                            }
+                        }
+                        else
+                        {
+                            std::cerr << "SyntaxError: Expected ')' on line " << peek().value().line << std::endl;
+                            exit(EXIT_FAILURE);
+                        }
+                    }
+                    else
+                    {
+                        std::cerr << "SyntaxError: Expected expression on line " << peek().value().line << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                else
+                {
+                    std::cerr << "SyntaxError: Expected '(' on line " << peek().value().line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+            }
         }
 
         return {};

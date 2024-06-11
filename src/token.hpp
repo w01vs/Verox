@@ -12,10 +12,10 @@ enum class TokenType {
     _ident,         // a variable name
     _assign,        // '='
     _print,         // print -> internal
+    _if,
     // Precedence
     _open_p,        // '('
     _close_p,       // ')'
-    
     // Mafs
     _add,           // '+'
     _star,          // '*'

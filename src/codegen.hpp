@@ -53,6 +53,24 @@ class Generator {
             NodeScope* scope = std::get<NodeScope*>(stmt->var);
             gen_scope(scope);
         }
+        else if(stmt->var.index() == 3) // If statement
+        {
+            NodeIf* ifstmt = std::get<NodeIf*>(stmt->var);
+            gen_if(ifstmt);
+        }
+    }
+
+    inline void gen_if(const NodeIf* ifstmt) {
+        int _sp = sp;
+        code << "    ;; If statement\n";
+        gen_expr(ifstmt->cond);
+        pop("rax");
+        code << "    cmp rax, 1\n";
+        std::string label = "if_" + std::to_string(labels++);
+        code << "    je " << label << "\n";
+        gen_scope(ifstmt->scope);
+        code << label << ":\n\n";
+        sp = _sp;
     }
 
     inline void gen_scope(const NodeScope* scope)
@@ -68,6 +86,7 @@ class Generator {
             sp -= pop;
         }
         for(int i = 0; i < pop; i++) { vars.pop_back(); }
+        code << "    ;; Exiting scope\n";
     }
 
     inline void gen_expr(const NodeExpr* expr)
@@ -224,7 +243,7 @@ class Generator {
             gen_binary_term(eq->rhs);
             pop("rdi");
             pop("rax");
-            code << "    cmp rax, rdi\n";
+            code << "    cmp rdi, rax\n";
             code << "    sete al\n";
             code << "    movzx rax, al\n";
             push("rax");
@@ -237,7 +256,7 @@ class Generator {
             gen_binary_term(greater->rhs);
             pop("rdi");
             pop("rax");
-            code << "    cmp rax, rdi\n";
+            code << "    cmp rdi, rax\n";
             code << "    setg al\n";
             code << "    movzx rax, al\n";
             push("rax");
@@ -250,7 +269,7 @@ class Generator {
             gen_binary_term(less->rhs);
             pop("rdi");
             pop("rax");
-            code << "    cmp rax, rdi\n";
+            code << "    cmp rdi, rax\n";
             code << "    setl al\n";
             code << "    movzx rax, al\n";
             push("rax");
@@ -263,7 +282,7 @@ class Generator {
             gen_binary_term(greater_eq->rhs);
             pop("rdi");
             pop("rax");
-            code << "    cmp rax, rdi\n";
+            code << "    cmp rdi, rax\n";
             code << "    setge al\n";
             code << "    movzx rax, al\n";
             push("rax");
@@ -280,7 +299,7 @@ class Generator {
             gen_binary_term(neq->rhs);
             pop("rdi");
             pop("rax");
-            code << "    cmp rax, rdi\n";
+            code << "    cmp rdi, rax\n";
             code << "    setne al\n";
             code << "    movzx rax, al\n";
             push("rax");
@@ -382,6 +401,7 @@ class Generator {
     std::stringstream init;
     size_t sp = 0;
     size_t str_count = 0;
+    size_t labels = 0;
 
     std::vector<Var> vars;
     std::unordered_map<std::string, bool> internals_called;

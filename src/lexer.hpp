@@ -89,6 +89,9 @@ inline void print_token_type(const TokenType& type)
     case TokenType::_neq:
         std::cout << "not equal" << std::endl;
         break;
+    case TokenType::_if:
+        std::cout << "if" << std::endl;
+        break;
     default:
         std::cout << "I forgot or what the fuck is this?" << std::endl;
     }
@@ -166,6 +169,12 @@ class Lexer {
             else if(buf == "bool")
             {
                 tokens.push_back({TokenType::_type, lc, buf});
+                buf.clear();
+                return true;
+            }
+            else if(buf == "if")
+            {
+                tokens.push_back({TokenType::_if, lc, buf});
                 buf.clear();
                 return true;
             }

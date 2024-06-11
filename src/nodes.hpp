@@ -140,9 +140,10 @@ struct NodeStmtVar {
 };
 
 struct NodeScope;
+struct NodeIf;
 
 struct NodeStmt {
-    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*> var; // Internal stuff or variable
+    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*, NodeIf*> var; // Internal stuff or variable
 };
 
 struct NodeScope {
