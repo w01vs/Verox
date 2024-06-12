@@ -13,6 +13,7 @@ enum class TokenType {
     _assign,        // '='
     _print,         // print -> internal
     _if,
+    _else,
     // Precedence
     _open_p,        // '('
     _close_p,       // ')'

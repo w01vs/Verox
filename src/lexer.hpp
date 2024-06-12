@@ -178,6 +178,11 @@ class Lexer {
                 buf.clear();
                 return true;
             }
+            else if(buf == "else") {
+                tokens.push_back({TokenType::_else, lc, buf});
+                buf.clear();
+                return true;
+            }
             else
             {
                 tokens.push_back({TokenType::_ident, lc, buf});
