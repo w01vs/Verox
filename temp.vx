@@ -1,9 +1,10 @@
-int x = 1;
-int y = 2;
+int x = 3;
+int y = 5;
 
 bool z = x < y;
+bool m = 3 < 5;
 
-if(z) {
+if(z || m) {
     return y;
 }
-return z;
+return x;

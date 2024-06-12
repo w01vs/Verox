@@ -60,7 +60,23 @@ class Parser {
 
     inline std::optional<NodeExpr*> parse_logic_expr(int min_prec = 0)
     {
-        // Parse hand side
+        // Parse for prefixed not operator
+        if(auto not_ = try_take(TokenType::_not))
+        {
+            if(auto expr = parse_logic_expr()) {
+                auto not_expr = arena.emplace<NodeLogicExprNot>(expr.value());
+                auto logic_expr = arena.emplace<NodeLogicExpr>(not_expr);
+                auto end_expr = arena.emplace<NodeExpr>(logic_expr);
+                return end_expr;
+            }
+            else
+            {
+                std::cerr << "SyntaxError: Expected expression on line " << not_.value().line << std::endl;
+                exit(EXIT_FAILURE);
+            
+            }
+        }
+        // Parse left hand side
         NodeLogicTerm* term_lhs = parse_logic_term();
         NodeExpr* expr_lhs = arena.emplace<NodeExpr>(term_lhs);
 

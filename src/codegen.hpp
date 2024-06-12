@@ -21,8 +21,6 @@ class Generator {
         data << "default rel\n";
         data << "section .data\n";
         for(int i = 0; i < root->stmts.size(); i++) { gen_stmt(root->stmts.at(i)); }
-        if(!internals_called.at("ret"))
-            gen_ret();
         data << "\n";
         data << ext.str() << init.str() << code.str();
         return data.str();
@@ -67,7 +65,7 @@ class Generator {
         pop("rax");
         code << "    cmp rax, 1\n";
         std::string label = "if_" + std::to_string(labels++);
-        code << "    je " << label << "\n";
+        code << "    jz " << label << "\n";
         gen_scope(ifstmt->scope);
         code << label << ":\n\n";
         sp = _sp;
@@ -155,8 +153,7 @@ class Generator {
             Generator* const gen;
             void operator()(const NodeInternalRet* ret) const
             {
-                if(!gen->internals_called.contains("ret"))
-                    gen->internals_called.insert({"ret", true});
+                gen->code <<  "    ;; Return\n";
                 gen->gen_expr(ret->ret);
                 gen->pop("rdi");
                 if(gen->sp % 2 != 0)
