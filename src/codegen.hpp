@@ -127,6 +127,10 @@ class Generator {
                 exit(EXIT_FAILURE);
             }
             const Var& var = get_var(ident->ident.val.value());
+            if(var.type != Type::_int) {
+                std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'int' on line " << ident->ident.line << std::endl;
+                exit(EXIT_FAILURE);
+            }
             std::stringstream offset;
             code << "    ;; Loading variable '" << var.name << "'\n";
             offset << "QWORD [rsp + " << (sp - var.stackl - 1) * 8 << "]";

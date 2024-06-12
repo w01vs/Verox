@@ -2,9 +2,9 @@ int x = 3;
 int y = 5;
 
 bool z = x < y;
-bool m = 3 < 5;
+bool m = 6 < m;
 
-if(z || m) {
+if(!(z || m)) {
     return y;
 }
 return x;

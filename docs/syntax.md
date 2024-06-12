@@ -9,6 +9,8 @@ Some parts of Verox
 * **;**
 * **{**
 * **}**
+* **(**
+* **)**
 
 ### Binary operators
 
@@ -16,8 +18,6 @@ Some parts of Verox
 * **-**
 * **\***
 * **/**
-* **(**
-* **)**
 
 ### Logic operators
 
