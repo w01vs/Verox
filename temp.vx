@@ -1,10 +1,15 @@
 int x = 3;
-int y = 5;
+int y = 70;
 
-bool z = x < y;
-bool m = 6 < m;
+bool z = y < x;
+bool m = 6 < 7;
 
-if(!(z || m)) {
+if(!(z && m)) {
     return y;
 }
-return x;
+else if(!m) {
+    return 100;
+}
+else {
+    return 105;
+}

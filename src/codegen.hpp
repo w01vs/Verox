@@ -58,17 +58,88 @@ class Generator {
         }
     }
 
-    inline void gen_if(const NodeIf* ifstmt) {
+    inline void gen_if(const NodeIf* ifstmt)
+    {
         int _sp = sp;
         code << "    ;; If statement\n";
         gen_expr(ifstmt->cond);
         pop("rax");
         code << "    cmp rax, 1\n";
-        std::string label = "if_" + std::to_string(labels++);
-        code << "    jz " << label << "\n";
-        gen_scope(ifstmt->scope);
-        code << label << ":\n\n";
-        sp = _sp;
+        std::string label_end = "if_" + std::to_string(if_labels) + "_end";
+        std::string label_else = "if_" + std::to_string(if_labels) + "_else";
+        if(ifstmt->elseif_stmts.size() == 0)
+        {
+            code << "    ;; Else statement\n";
+            code << "    je " << label_else << "\n";
+            gen_scope(ifstmt->scope);
+            sp = _sp;
+            code << "    jmp " << label_end << "\n";
+            if(ifstmt->else_stmts.has_value())
+            {
+                code << label_else << ":\n\n";
+                gen_scope(ifstmt->else_stmts.value());
+            }
+            sp = _sp;
+            code << "    ;; End if statement\n";
+            code << label_end << ":\n";
+            return;
+        }
+
+        for(int i = 0; i < ifstmt->elseif_stmts.size(); i++)
+        {
+            
+            auto iff = ifstmt->elseif_stmts.at(i);
+            std::string label_elseif = "if_" + std::to_string(if_labels) + "_elseif_" + std::to_string(i);
+            std::string label_next = "if_" + std::to_string(if_labels) + "_elseif_" + std::to_string(i + 1);
+            if(i == 0)
+            {   
+                code << "    je " << label_elseif << "\n";
+                code << "    ;; First if statement\n";
+                gen_scope(ifstmt->scope);
+                code << "    jmp " << label_end << "\n";
+                sp = _sp;
+                code << label_elseif << ":\n";
+            }
+            else {
+                code << label_elseif << ":\n";
+            }
+            code << "    ;; Begin elseif condition\n";
+            gen_expr(iff->cond);
+            pop("rax");
+            code << "    cmp rax, 1\n";
+            if(i < ifstmt->elseif_stmts.size() - 1)
+            {
+                code << "    je " << label_next << "\n";
+            }
+            else
+            {
+                if(ifstmt->else_stmts.has_value())
+                {
+                    code << "    je " << label_else << "\n";
+                }
+                else
+                {
+                    code << "    je " << label_end << "\n";
+                }
+            }
+
+            code << "    ;; End elseif condition\n";
+            
+            gen_scope(iff->scope);
+            code << "    jmp " << label_end << "\n";
+            sp = _sp;
+        }
+
+        if(ifstmt->else_stmts.has_value())
+        {
+            code << "    ;; Else statement\n";
+            code << label_else << ":\n\n";
+            gen_scope(ifstmt->else_stmts.value());
+            sp = _sp;
+        }
+
+        code << "    ;; End if statement\n";
+        code << label_end << ":\n";
     }
 
     inline void gen_scope(const NodeScope* scope)
@@ -127,7 +198,8 @@ class Generator {
                 exit(EXIT_FAILURE);
             }
             const Var& var = get_var(ident->ident.val.value());
-            if(var.type != Type::_int) {
+            if(var.type != Type::_int)
+            {
                 std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'int' on line " << ident->ident.line << std::endl;
                 exit(EXIT_FAILURE);
             }
@@ -157,7 +229,7 @@ class Generator {
             Generator* const gen;
             void operator()(const NodeInternalRet* ret) const
             {
-                gen->code <<  "    ;; Return\n";
+                gen->code << "    ;; Return\n";
                 gen->gen_expr(ret->ret);
                 gen->pop("rdi");
                 if(gen->sp % 2 != 0)
@@ -381,7 +453,7 @@ class Generator {
             NodeLogicExprNot* not_expr = std::get<NodeLogicExprNot*>(expr->val);
             gen_expr(not_expr->expr);
             pop("rax");
-            code << "    not rax\n";
+            code << "    xor rax, 1\n";
             push("rax");
             code << "\n";
         }
@@ -402,7 +474,9 @@ class Generator {
     std::stringstream init;
     size_t sp = 0;
     size_t str_count = 0;
-    size_t labels = 0;
+    size_t if_labels = 0;
+    size_t while_labels = 0;
+    size_t for_labels = 0;
 
     std::vector<Var> vars;
     std::unordered_map<std::string, bool> internals_called;

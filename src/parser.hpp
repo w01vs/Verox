@@ -523,55 +523,74 @@ class Parser {
                 auto stmt = arena.emplace<NodeStmt>(scope);
                 return stmt;
             }
-            else if(auto _if = try_take(TokenType::_if))
-            {
-                if(auto open_p = try_take(TokenType::_open_p))
-                {
-                    if(auto expr = parse_logic_expr())
-                    {
-                        if(auto close_p = try_take(TokenType::_close_p))
-                        {
-                            if(auto bracket = try_take(TokenType::_open_b))
-                            {
-                                if(auto scope = parse_scope())
-                                {
-                                    auto if_ = arena.emplace<NodeIf>(expr.value(), scope);
-                                    auto stmt = arena.emplace<NodeStmt>(if_);
-                                    return stmt;
-                                }
-                                else
-                                {
-                                    std::cerr << "SyntaxError: Expected scope on line " << peek().value().line << std::endl;
-                                    exit(EXIT_FAILURE);
-                                }
-                            }
-                            else
-                            {
-                                std::cerr << "SyntaxError: Expected '{' on line " << peek().value().line << std::endl;
-                                exit(EXIT_FAILURE);
-                            }
-                        }
-                        else
-                        {
-                            std::cerr << "SyntaxError: Expected ')' on line " << peek().value().line << std::endl;
-                            exit(EXIT_FAILURE);
-                        }
-                    }
-                    else
-                    {
-                        std::cerr << "SyntaxError: Expected expression on line " << peek().value().line << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
-                }
-                else
-                {
-                    std::cerr << "SyntaxError: Expected '(' on line " << peek().value().line << std::endl;
-                    exit(EXIT_FAILURE);
-                }
+            else if(auto _if = parse_if()) {
+                auto stmt = arena.emplace<NodeStmt>(_if.value());
+                return stmt;
             }
         }
 
         return {};
+    }
+
+    // Refactor this to be more readable and probably split if, else and else if into seperate functions
+    inline std::optional<NodeIf*> parse_if(bool chained = false) {
+        std::vector<NodeIf*> nested_ifs;
+        auto node_if = arena.emplace<NodeIf>();
+        if(auto _if = try_take(TokenType::_if)) {
+            if(auto open_p = try_take(TokenType::_open_p)) {
+                if(auto expr = parse_logic_expr()) {
+                    node_if->cond = expr.value();
+                    if(auto close_p = try_take(TokenType::_close_p)) {
+                        if(auto bracket = try_take(TokenType::_open_b)) {
+                            if(auto scope = parse_scope()) {
+                                node_if->scope = scope;
+                                while(peek().has_value() && peek().value().type == TokenType::_else && !chained) {
+                                    take();
+                                    if(auto _nested = parse_if(true)) {
+                                        nested_ifs.emplace_back(_nested.value());
+                                    }
+                                    else {
+                                        if(auto bracket_ = try_take(TokenType::_open_b)) {
+                                            if(auto scope_ = parse_scope()) {
+                                                node_if->else_stmts = scope_;
+                                            }
+                                            else {
+                                                std::cerr << "SyntaxError: Expected '}' on line " << bracket_.value().line << std::endl;
+                                                exit(EXIT_FAILURE);
+                                            }
+                                        }
+                                        else {
+                                            std::cerr << "SyntaxError: Expected '{' on line " << peek().value().line << std::endl;
+                                            exit(EXIT_FAILURE);
+                                        }
+                                    }
+                                }
+
+                                node_if->elseif_stmts = nested_ifs;
+                                return node_if;
+                            } else {
+                                std::cerr << "SyntaxError: Expected scope on line " << peek().value().line << std::endl;
+                                exit(EXIT_FAILURE);
+                            }
+                        } else {
+                            std::cerr << "SyntaxError: Expected '{' on line " << peek().value().line << std::endl;
+                            exit(EXIT_FAILURE);
+                        }
+                    } else {
+                        std::cerr << "SyntaxError: Expected ')' on line " << peek().value().line << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+                } else {
+                    std::cerr << "SyntaxError: Expected expression on line " << peek().value().line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+            } else {
+                std::cerr << "SyntaxError: Expected '(' on line " << peek().value().line << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        return { };
     }
 
     inline std::optional<NodeProg*> parse()

@@ -154,7 +154,7 @@ struct NodeIf {
     NodeExpr* cond;
     NodeScope* scope;
     std::vector<NodeIf*> elseif_stmts;
-    NodeScope* else_stmts;
+    std::optional<NodeScope*> else_stmts;
 };
 
 struct NodeProg {

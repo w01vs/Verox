@@ -38,6 +38,9 @@ Some parts of Verox
 
 * **return**
 * **if**
+* **else**
+
+\* if can be chained after else like **else if**
 
 #### Types
 
@@ -65,6 +68,19 @@ int y = 10 * (2 + 3);
 int x = 7;
 int z = y - x;
 
-if(z < y) { return x;}
-return z;
+int x = 3;
+int y = 70;
+
+bool z = y < x;
+bool m = 6 < 7;
+
+if(!(z && m)) {
+    return y;
+}
+else if(!m) {
+    return 100;
+}
+else {
+    return 105;
+}
 ```
