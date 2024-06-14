@@ -7,10 +7,8 @@ Some parts of Verox
 ### Operators
 
 * **;**
-* **{**
-* **}**
-* **(**
-* **)**
+* **{}**
+* **()**
 
 ### Binary operators
 
