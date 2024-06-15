@@ -9,6 +9,7 @@ Some parts of Verox
 * **;**
 * **{}**
 * **()**
+* **=**
 
 ### Binary operators
 
@@ -71,6 +72,9 @@ int y = 70;
 
 bool z = y < x;
 bool m = 6 < 7;
+
+bool p = z;
+int g = x;
 
 if(!(z && m)) {
     return y;
