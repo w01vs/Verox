@@ -1,6 +1,6 @@
 #pragma once
 
-#include "token.hpp"
+#include "tokens.hpp"
 #include <variant>
 #include <vector>
 #include "type.hpp"
@@ -142,8 +142,14 @@ struct NodeStmtVar {
 struct NodeScope;
 struct NodeIf;
 
+
+struct NodeStmtAssign {
+    Token ident; // var name
+    NodeExpr* expr; // var value
+};
+
 struct NodeStmt {
-    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*, NodeIf*> var; // Internal stuff or variable
+    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*, NodeIf*, NodeStmtAssign*> var; // Internal stuff or variable
 };
 
 struct NodeScope {

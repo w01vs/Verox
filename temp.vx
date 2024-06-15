@@ -1,15 +1,4 @@
 int x = 3;
-int y = 70;
-
-bool z = y < x;
-bool m = 6 < 7;
-
-if(!(z && m)) {
-    return y;
-}
-else if(!m) {
-    return 100;
-}
-else {
-    return 105;
-}
+bool y = true;
+x = y;
+return x;

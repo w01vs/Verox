@@ -14,6 +14,8 @@ enum class TokenType {
     _print,         // print -> internal
     _if,
     _else,
+    _while,
+    _for,
     // Precedence
     _open_p,        // '('
     _close_p,       // ')'

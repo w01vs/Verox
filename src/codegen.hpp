@@ -56,6 +56,25 @@ class Generator {
             NodeIf* ifstmt = std::get<NodeIf*>(stmt->var);
             gen_if(ifstmt);
         }
+        else if(stmt->var.index() == 4) // Reassignment
+        {
+            NodeStmtAssign* assign = std::get<NodeStmtAssign*>(stmt->var);
+            if(!var_declared(assign->ident.val.value()))
+            {
+                std::cerr << "Error: Identifier '" << assign->ident.val.value() << "' has not been declared on line " << assign->ident.line << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            const Var& var = get_var(assign->ident.val.value());
+            if(var.type != assign->expr->type.value()) {
+                std::cerr << "Error: Identifier '" << assign->ident.val.value() << "' is not of type '" << print_type(assign->expr->type.value()) << "' on line " << assign->ident.line << std::endl;
+                exit(EXIT_FAILURE);
+            }
+
+            code << "    ;; Reassigning variable\n";
+            gen_expr(assign->expr);
+            pop("rax");
+            code << "    mov [rsp + " << (sp - var.stackl - 1) * 8 << "], rax\n\n";
+        }
     }
 
     inline void gen_if(const NodeIf* ifstmt)

@@ -5,7 +5,7 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include "token.hpp"
+#include "tokens.hpp"
 
 inline void print_token_type(const TokenType& type)
 {

@@ -8,7 +8,8 @@ $$
         return \text{ [Expr];} \\
         \text{[type]} \text{ [ident]} = \text{[Expr]}; \\
         \text{[scope]} \\
-        \text{[if]}
+        \text{[if]} \\
+        \text{[ident] = [Expr];} \\
         \end{cases} \\
     \text{[scope]} &\to [stmt]^*\\
     \text{[return]} &\to return\text{ [Expr]}; \\

@@ -2,7 +2,7 @@
 
 #include <string>
 
-enum class Type { _int = 0, _bool = 1, _void = 2, undefined = 3 };
+enum class Type { _int = 0, _bool = 1, _void = 2, undefined = 3, _untyped = 4 };
 
 inline std::string print_type(Type type)
 {

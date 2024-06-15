@@ -3,10 +3,12 @@
 
 #include "arena.hpp"
 #include "nodes.hpp"
-#include "token.hpp"
+#include "tokens.hpp"
+#include "type.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
+#include <map>
 #include <variant>
 
 inline std::string type_string(Type type)
@@ -54,7 +56,7 @@ class Parser {
             return parse_binary_expr();
         else if(type == Type::_bool) // Parse boolean stuff
             return parse_logic_expr();
-        else if(type == Type::_void) {} // not here yet
+        else if(type == Type::_void) {} // nothing here yet
         return {};
     }
 
@@ -63,7 +65,8 @@ class Parser {
         // Parse for prefixed not operator
         if(auto not_ = try_take(TokenType::_not))
         {
-            if(auto expr = parse_logic_expr()) {
+            if(auto expr = parse_logic_expr())
+            {
                 auto not_expr = arena.emplace<NodeLogicExprNot>(expr.value());
                 auto logic_expr = arena.emplace<NodeLogicExpr>(not_expr);
                 auto end_expr = arena.emplace<NodeExpr>(logic_expr);
@@ -71,14 +74,18 @@ class Parser {
             }
             else
             {
-                std::cerr << "SyntaxError: Expected expression on line " << not_.value().line << std::endl;
+                std::cerr << "SyntaxError: Expected logic expression on line " << not_.value().line << std::endl;
                 exit(EXIT_FAILURE);
-            
             }
         }
         // Parse left hand side
-        NodeLogicTerm* term_lhs = parse_logic_term();
-        NodeExpr* expr_lhs = arena.emplace<NodeExpr>(term_lhs);
+        auto term_lhs = parse_logic_term();
+        if(!term_lhs.has_value())
+        {
+            std::cerr << "SyntaxError: Expected logic expression on line " << peek().value().line << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        NodeExpr* expr_lhs = arena.emplace<NodeExpr>(term_lhs.value());
 
         // Parse the remainder
         while(true)
@@ -102,7 +109,7 @@ class Parser {
             auto rhs = parse_logic_expr(next_prec);
             if(!rhs.has_value())
             {
-                std::cerr << "SyntaxError: Expected expression on line " << line << std::endl;
+                std::cerr << "SyntaxError: Expected logic expression on line " << line << std::endl;
                 exit(EXIT_FAILURE);
             }
             // Specific parsing for the operators
@@ -137,8 +144,13 @@ class Parser {
     inline std::optional<NodeExpr*> parse_binary_expr(int min_prec = 0)
     {
         // Parse left hand side
-        NodeBinTerm* term_lhs = parse_binary_term();
-        NodeExpr* expr_lhs = arena.emplace<NodeExpr>(term_lhs);
+        auto term_lhs = parse_binary_term();
+        if(!term_lhs.has_value())
+        {
+            std::cerr << "SyntaxError: Expected binary expression on line " << peek().value().line << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        NodeExpr* expr_lhs = arena.emplace<NodeExpr>(term_lhs.value());
 
         // Parse the remainder
         while(true)
@@ -161,7 +173,7 @@ class Parser {
             auto rhs = parse_binary_expr(next_prec);
             if(!rhs.has_value())
             {
-                std::cerr << "SyntaxError: Expected expression on line " << line << std::endl;
+                std::cerr << "SyntaxError: Expected binary expression on line " << line << std::endl;
                 exit(EXIT_FAILURE);
             }
 
@@ -316,14 +328,15 @@ class Parser {
         }
     }
 
-    inline NodeLogicTerm* parse_logic_term()
+    inline std::optional<NodeLogicTerm*> parse_logic_term()
     {
         NodeLogicTerm* term = arena.emplace<NodeLogicTerm>();
         if(peek().has_value()) // Make sure there is a term
         {
-            auto token = take();
+            auto token = peek().value();
             if(token.type == TokenType::_true || token.type == TokenType::_false) // Case boolean literal
             {
+                take();
                 auto boolean = arena.emplace<NodeBool>(token);
                 term->val = boolean;
                 return term;
@@ -353,7 +366,7 @@ class Parser {
                 auto expr = parse_logic_expr();
                 if(!expr.has_value())
                 {
-                    std::cerr << "SyntaxError: Expected expression on line " << token.line << std::endl;
+                    std::cerr << "SyntaxError: Expected logic expression on line " << token.line << std::endl;
                 }
                 if(auto close = try_take(TokenType::_close_p))
                 {
@@ -383,11 +396,10 @@ class Parser {
             }
         }
 
-        std::cerr << "Error: Expected logic term on line " << peek(-1).value().line << std::endl;
-        exit(EXIT_FAILURE);
+        return {};
     }
 
-    inline NodeBinTerm* parse_binary_term()
+    inline std::optional<NodeBinTerm*> parse_binary_term()
     {
         NodeBinTerm* term = arena.emplace<NodeBinTerm>();
         if(peek().has_value()) // Make sure there is a term
@@ -410,7 +422,7 @@ class Parser {
                 auto expr = parse_binary_expr();
                 if(!expr.has_value())
                 {
-                    std::cerr << "SyntaxError: Expected expression on line " << token.line << std::endl;
+                    std::cerr << "SyntaxError: Expected binary expression on line " << token.line << std::endl;
                 }
                 if(auto close = try_take(TokenType::_close_p))
                 {
@@ -430,11 +442,7 @@ class Parser {
                 exit(EXIT_FAILURE);
             }
         }
-        else
-        {
-            std::cerr << "Error: Expected binary term on line " << peek(-1).value().line << std::endl;
-            exit(EXIT_FAILURE);
-        }
+        return {};
     }
 
     inline std::optional<NodeStmt*> parse_stmt()
@@ -465,7 +473,10 @@ class Parser {
                 auto stmt_var = arena.emplace<NodeStmtVar>(take(), type);
                 take(); // take '=' operator
                 if(auto expr = parse_expr(type))
+                {
                     stmt_var->expr = expr.value();
+                    vars.insert({stmt_var->ident.val.value(),  type});
+                }
                 else
                 {
                     std::cerr << "SyntaxError: Expected a value of type '" << type_string(stmt_var->type) << "' but got nothing" << std::endl;
@@ -498,7 +509,7 @@ class Parser {
                 take();
                 take();
                 auto stmt_prt = arena.emplace<NodeInternalPrintf>();
-                if(auto expr = parse_expr(Type::undefined))
+                if(auto expr = parse_expr(Type::_void))
                     stmt_prt->print = expr.value();
                 if(peek().has_value() && peek().value().type == TokenType::_close_p)
                     take();
@@ -523,8 +534,14 @@ class Parser {
                 auto stmt = arena.emplace<NodeStmt>(scope);
                 return stmt;
             }
-            else if(auto _if = parse_if()) {
+            else if(auto _if = parse_if())
+            {
                 auto stmt = arena.emplace<NodeStmt>(_if.value());
+                return stmt;
+            }
+            else if(auto assign = parse_assign())
+            {
+                auto stmt = arena.emplace<NodeStmt>(assign.value());
                 return stmt;
             }
         }
@@ -532,34 +549,92 @@ class Parser {
         return {};
     }
 
+    inline std::optional<NodeStmtAssign*> parse_assign()
+    {
+        if(peek().has_value() && peek().value().type == TokenType::_ident)
+        {
+            auto ident = take();
+            if(peek().has_value() && peek().value().type == TokenType::_assign)
+            {
+                take();
+                auto assign = arena.emplace<NodeStmtAssign>();
+                assign->ident = ident;
+                if(vars.find(ident.val.value()) == vars.end())
+                {
+                    std::cerr << "SyntaxError: Variable '" << ident.val.value() << "' is not defined" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                Type type = vars.at(ident.val.value());
+                if(auto parse = parse_expr(type))
+                {
+                    assign->expr = parse.value();
+                    assign->expr->type = type;
+                }
+                else
+                {
+                    std::cerr << "SyntaxError: Expected expression on line " << peek().value().line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                if(semicolon()) {}
+                else
+                {
+                    std::cerr << "SyntaxError: Expected ';' on line " << peek().value().line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                return assign;
+            }
+            else
+            {
+                std::cerr << "SyntaxError: Expected '=' on line " << peek().value().line << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        return {};
+    }
+
     // Refactor this to be more readable and probably split if, else and else if into seperate functions
-    inline std::optional<NodeIf*> parse_if(bool chained = false) {
+    inline std::optional<NodeIf*> parse_if(bool chained = false)
+    {
         std::vector<NodeIf*> nested_ifs;
         auto node_if = arena.emplace<NodeIf>();
-        if(auto _if = try_take(TokenType::_if)) {
-            if(auto open_p = try_take(TokenType::_open_p)) {
-                if(auto expr = parse_logic_expr()) {
+        if(auto _if = try_take(TokenType::_if))
+        {
+            if(auto open_p = try_take(TokenType::_open_p))
+            {
+                if(auto expr = parse_logic_expr())
+                {
                     node_if->cond = expr.value();
-                    if(auto close_p = try_take(TokenType::_close_p)) {
-                        if(auto bracket = try_take(TokenType::_open_b)) {
-                            if(auto scope = parse_scope()) {
+                    if(auto close_p = try_take(TokenType::_close_p))
+                    {
+                        if(auto bracket = try_take(TokenType::_open_b))
+                        {
+                            if(auto scope = parse_scope())
+                            {
                                 node_if->scope = scope;
-                                while(peek().has_value() && peek().value().type == TokenType::_else && !chained) {
+                                while(peek().has_value() && peek().value().type == TokenType::_else && !chained)
+                                {
                                     take();
-                                    if(auto _nested = parse_if(true)) {
+                                    if(auto _nested = parse_if(true))
+                                    {
                                         nested_ifs.emplace_back(_nested.value());
                                     }
-                                    else {
-                                        if(auto bracket_ = try_take(TokenType::_open_b)) {
-                                            if(auto scope_ = parse_scope()) {
+                                    else
+                                    {
+                                        if(auto bracket_ = try_take(TokenType::_open_b))
+                                        {
+                                            if(auto scope_ = parse_scope())
+                                            {
                                                 node_if->else_stmts = scope_;
                                             }
-                                            else {
+                                            else
+                                            {
                                                 std::cerr << "SyntaxError: Expected '}' on line " << bracket_.value().line << std::endl;
                                                 exit(EXIT_FAILURE);
                                             }
                                         }
-                                        else {
+                                        else
+                                        {
                                             std::cerr << "SyntaxError: Expected '{' on line " << peek().value().line << std::endl;
                                             exit(EXIT_FAILURE);
                                         }
@@ -568,29 +643,39 @@ class Parser {
 
                                 node_if->elseif_stmts = nested_ifs;
                                 return node_if;
-                            } else {
+                            }
+                            else
+                            {
                                 std::cerr << "SyntaxError: Expected scope on line " << peek().value().line << std::endl;
                                 exit(EXIT_FAILURE);
                             }
-                        } else {
+                        }
+                        else
+                        {
                             std::cerr << "SyntaxError: Expected '{' on line " << peek().value().line << std::endl;
                             exit(EXIT_FAILURE);
                         }
-                    } else {
+                    }
+                    else
+                    {
                         std::cerr << "SyntaxError: Expected ')' on line " << peek().value().line << std::endl;
                         exit(EXIT_FAILURE);
                     }
-                } else {
+                }
+                else
+                {
                     std::cerr << "SyntaxError: Expected expression on line " << peek().value().line << std::endl;
                     exit(EXIT_FAILURE);
                 }
-            } else {
+            }
+            else
+            {
                 std::cerr << "SyntaxError: Expected '(' on line " << peek().value().line << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
 
-        return { };
+        return {};
     }
 
     inline std::optional<NodeProg*> parse()
@@ -626,6 +711,7 @@ class Parser {
     std::vector<Token> tokens;
     ArenaAllocator arena;
     size_t index = 0;
+    std::map<std::string, Type> vars;
 
     inline std::optional<Token> peek(const int offset = 0) const
     {
