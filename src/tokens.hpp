@@ -12,10 +12,12 @@ enum class TokenType {
     _ident,         // a variable name
     _assign,        // '='
     _print,         // print -> internal
-    _if,
-    _else,
-    _while,
-    _for,
+    _if,            // if
+    _else,          // else
+    _while,         // while
+    _for,           // for
+    _break,         // break
+    _continue,      // continue
     // Precedence
     _open_p,        // '('
     _close_p,       // ')'

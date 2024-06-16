@@ -183,6 +183,26 @@ class Lexer {
                 buf.clear();
                 return true;
             }
+            else if(buf == "while") {
+                tokens.push_back({TokenType::_while, lc, buf});
+                buf.clear();
+                return true;
+            }
+            else if(buf == "for") {
+                tokens.push_back({TokenType::_for, lc, buf});
+                buf.clear();
+                return true;
+            }
+            else if(buf == "break") {
+                tokens.push_back({TokenType::_break, lc, buf});
+                buf.clear();
+                return true;
+            }
+            else if(buf == "continue") {
+                tokens.push_back({TokenType::_continue, lc, buf});
+                buf.clear();
+                return true;
+            }
             else
             {
                 tokens.push_back({TokenType::_ident, lc, buf});

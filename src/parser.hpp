@@ -593,6 +593,43 @@ class Parser {
         return {};
     }
 
+    inline std::optional<NodeWhile*> parse_while() {
+        if(peek().has_value() && peek().value().type == TokenType::_while) {
+            take();
+            if(auto open_p = try_take(TokenType::_open_p)) {
+                if(auto expr = parse_logic_expr()) {
+                    if(auto close_p = try_take(TokenType::_close_p)) {
+                        if(auto bracket = try_take(TokenType::_open_b)) {
+                            if(auto scope = parse_scope()) {
+                                auto node_while = arena.emplace<NodeWhile>();
+                                node_while->cond = expr.value();
+                                node_while->scope = scope;
+                                return node_while;
+                            } else {
+                                std::cerr << "SyntaxError: Expected scope on line " << peek().value().line << std::endl;
+                                exit(EXIT_FAILURE);
+                            }
+                        } else {
+                            std::cerr << "SyntaxError: Expected '{' on line " << peek().value().line << std::endl;
+                            exit(EXIT_FAILURE);
+                        }
+                    } else {
+                        std::cerr << "SyntaxError: Expected ')' on line " << peek().value().line << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+                } else {
+                    std::cerr << "SyntaxError: Expected expression on line " << peek().value().line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+            } else {
+                std::cerr << "SyntaxError: Expected '(' on line " << peek().value().line << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        return { };
+    }
+
     // Refactor this to be more readable and probably split if, else and else if into seperate functions
     inline std::optional<NodeIf*> parse_if(bool chained = false)
     {

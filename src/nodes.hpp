@@ -148,12 +148,19 @@ struct NodeStmtAssign {
     NodeExpr* expr; // var value
 };
 
+struct NodeWhile;
+
 struct NodeStmt {
-    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*, NodeIf*, NodeStmtAssign*> var; // Internal stuff or variable
+    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*, NodeIf*, NodeStmtAssign*, NodeWhile*> var; // Internal stuff or variable
 };
 
 struct NodeScope {
     std::vector<NodeStmt*> stmts; // All statements in a scope
+};
+
+struct NodeWhile {
+    NodeExpr* cond;
+    NodeScope* scope;
 };
 
 struct NodeIf {

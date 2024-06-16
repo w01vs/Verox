@@ -161,6 +161,13 @@ class Generator {
         code << label_end << ":\n";
     }
 
+    inline void gen_while(const NodeWhile* _while) {
+        int _sp = sp;
+        code << "    ;; While statement\n";
+        std::string label_begin = "while_" + std::to_string(while_labels++) + "_begin";
+        
+    }
+
     inline void gen_scope(const NodeScope* scope)
     {
         code << "    ;; Entering scope\n";
