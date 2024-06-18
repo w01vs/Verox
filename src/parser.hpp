@@ -333,7 +333,7 @@ class Parser {
         NodeLogicTerm* term = arena.emplace<NodeLogicTerm>();
         if(peek().has_value()) // Make sure there is a term
         {
-            auto token = peek().value();
+            auto token = take();
             if(token.type == TokenType::_true || token.type == TokenType::_false) // Case boolean literal
             {
                 take();
@@ -475,7 +475,7 @@ class Parser {
                 if(auto expr = parse_expr(type))
                 {
                     stmt_var->expr = expr.value();
-                    vars.insert({stmt_var->ident.val.value(),  type});
+                    vars.insert({stmt_var->ident.val.value(), type});
                 }
                 else
                 {
@@ -544,6 +544,40 @@ class Parser {
                 auto stmt = arena.emplace<NodeStmt>(assign.value());
                 return stmt;
             }
+            else if(auto cont = try_take(TokenType::_continue))
+            {
+                auto flow = arena.emplace<NodeLoopFlow>(NodeLoopFlow::CONTINUE);
+                auto internal = arena.emplace<NodeInternal>(flow);
+                auto stmt = arena.emplace<NodeStmt>(internal);
+                if(semicolon())
+                {
+                    return stmt;
+                }
+                else
+                {
+                    std::cerr << "SyntaxError: Expected ';' on line " << peek().value().line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else if(auto brk = try_take(TokenType::_break)) {
+                auto flow = arena.emplace<NodeLoopFlow>(NodeLoopFlow::BREAK);
+                auto internal = arena.emplace<NodeInternal>(flow);
+                auto stmt = arena.emplace<NodeStmt>(internal);
+                if(semicolon())
+                {
+                    return stmt;
+                }
+                else
+                {
+                    std::cerr << "SyntaxError: Expected ';' on line " << peek().value().line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else if(auto _while = parse_while())
+            {
+                auto stmt = arena.emplace<NodeStmt>(_while.value());
+                return stmt;
+            }
         }
 
         return {};
@@ -593,41 +627,58 @@ class Parser {
         return {};
     }
 
-    inline std::optional<NodeWhile*> parse_while() {
-        if(peek().has_value() && peek().value().type == TokenType::_while) {
+    inline std::optional<NodeWhile*> parse_while()
+    {
+        if(peek().has_value() && peek().value().type == TokenType::_while)
+        {
             take();
-            if(auto open_p = try_take(TokenType::_open_p)) {
-                if(auto expr = parse_logic_expr()) {
-                    if(auto close_p = try_take(TokenType::_close_p)) {
-                        if(auto bracket = try_take(TokenType::_open_b)) {
-                            if(auto scope = parse_scope()) {
+            if(auto open_p = try_take(TokenType::_open_p))
+            {
+                if(auto expr = parse_expr(Type::_bool))
+                {
+                    if(auto close_p = try_take(TokenType::_close_p))
+                    {
+                        if(auto bracket = try_take(TokenType::_open_b))
+                        {
+                            if(auto scope = parse_scope())
+                            {
                                 auto node_while = arena.emplace<NodeWhile>();
                                 node_while->cond = expr.value();
                                 node_while->scope = scope;
                                 return node_while;
-                            } else {
+                            }
+                            else
+                            {
                                 std::cerr << "SyntaxError: Expected scope on line " << peek().value().line << std::endl;
                                 exit(EXIT_FAILURE);
                             }
-                        } else {
+                        }
+                        else
+                        {
                             std::cerr << "SyntaxError: Expected '{' on line " << peek().value().line << std::endl;
                             exit(EXIT_FAILURE);
                         }
-                    } else {
+                    }
+                    else
+                    {
                         std::cerr << "SyntaxError: Expected ')' on line " << peek().value().line << std::endl;
                         exit(EXIT_FAILURE);
                     }
-                } else {
+                }
+                else
+                {
                     std::cerr << "SyntaxError: Expected expression on line " << peek().value().line << std::endl;
                     exit(EXIT_FAILURE);
                 }
-            } else {
+            }
+            else
+            {
                 std::cerr << "SyntaxError: Expected '(' on line " << peek().value().line << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
 
-        return { };
+        return {};
     }
 
     // Refactor this to be more readable and probably split if, else and else if into seperate functions

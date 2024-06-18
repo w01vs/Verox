@@ -3,6 +3,7 @@
 
 #include "nodes.hpp"
 #include <algorithm>
+#include <cstddef>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -26,12 +27,12 @@ class Generator {
         return data.str();
     }
 
-    inline void gen_stmt(const NodeStmt* stmt)
+    inline void gen_stmt(const NodeStmt* stmt, size_t loop_id = 0)
     {
         if(stmt->var.index() == 0) // Internal
         {
             NodeInternal* var = std::get<NodeInternal*>(stmt->var);
-            gen_internal(var);
+            gen_internal(var, loop_id);
         }
         else if(stmt->var.index() == 1) // Variable
         {
@@ -75,15 +76,19 @@ class Generator {
             pop("rax");
             code << "    mov [rsp + " << (sp - var.stackl - 1) * 8 << "], rax\n\n";
         }
+        else if(stmt->var.index() == 5) // While statement
+        {
+            NodeWhile* _while = std::get<NodeWhile*>(stmt->var);
+            gen_while(_while);
+        }
     }
 
     inline void gen_if(const NodeIf* ifstmt)
     {
-        int _sp = sp;
         code << "    ;; If statement\n";
         gen_expr(ifstmt->cond);
         pop("rax");
-        code << "    cmp rax, 1\n";
+        code << "    cmp rax, 0\n";
         std::string label_end = "if_" + std::to_string(if_labels) + "_end";
         std::string label_else = "if_" + std::to_string(if_labels) + "_else";
         if(ifstmt->elseif_stmts.size() == 0)
@@ -91,14 +96,12 @@ class Generator {
             code << "    ;; Else statement\n";
             code << "    je " << label_else << "\n";
             gen_scope(ifstmt->scope);
-            sp = _sp;
             code << "    jmp " << label_end << "\n";
             if(ifstmt->else_stmts.has_value())
             {
                 code << label_else << ":\n\n";
                 gen_scope(ifstmt->else_stmts.value());
             }
-            sp = _sp;
             code << "    ;; End if statement\n";
             code << label_end << ":\n";
             return;
@@ -116,7 +119,6 @@ class Generator {
                 code << "    ;; First if statement\n";
                 gen_scope(ifstmt->scope);
                 code << "    jmp " << label_end << "\n";
-                sp = _sp;
                 code << label_elseif << ":\n";
             }
             else {
@@ -125,7 +127,7 @@ class Generator {
             code << "    ;; Begin elseif condition\n";
             gen_expr(iff->cond);
             pop("rax");
-            code << "    cmp rax, 1\n";
+            code << "    cmp rax, 0\n";
             if(i < ifstmt->elseif_stmts.size() - 1)
             {
                 code << "    je " << label_next << "\n";
@@ -146,7 +148,7 @@ class Generator {
             
             gen_scope(iff->scope);
             code << "    jmp " << label_end << "\n";
-            sp = _sp;
+
         }
 
         if(ifstmt->else_stmts.has_value())
@@ -154,7 +156,6 @@ class Generator {
             code << "    ;; Else statement\n";
             code << label_else << ":\n\n";
             gen_scope(ifstmt->else_stmts.value());
-            sp = _sp;
         }
 
         code << "    ;; End if statement\n";
@@ -162,17 +163,24 @@ class Generator {
     }
 
     inline void gen_while(const NodeWhile* _while) {
-        int _sp = sp;
         code << "    ;; While statement\n";
-        std::string label_begin = "while_" + std::to_string(while_labels++) + "_begin";
-        
+        std::string label_begin = "while_" + std::to_string(loop_labels) + "_begin";
+        std::string label_end = "while_" + std::to_string(loop_labels) + "_end";
+        code << label_begin << ":\n";
+        gen_expr(_while->cond);
+        pop("rax");
+        code << "    cmp rax, 0\n";
+        code << "    jz " << label_end << "\n";
+        gen_scope(_while->scope, loop_labels++);
+        code << "    jmp " << label_begin << "\n";
+        code << label_end << ":\n";
     }
 
-    inline void gen_scope(const NodeScope* scope)
+    inline void gen_scope(const NodeScope* scope, size_t loop_id = 0)
     {
         code << "    ;; Entering scope\n";
         size_t vars_size = vars.size();
-        for(int i = 0; i < scope->stmts.size(); i++) { gen_stmt(scope->stmts.at(i)); }
+        for(int i = 0; i < scope->stmts.size(); i++) { gen_stmt(scope->stmts.at(i), loop_id); }
         size_t pop = vars.size() - vars_size;
         if(pop > 0)
         {
@@ -217,6 +225,7 @@ class Generator {
     {
         if(term->val.index() == 0) // Identifier
         {
+            int val;
             NodeIdent* ident = std::get<NodeIdent*>(term->val);
             if(!var_declared(ident->ident.val.value()))
             {
@@ -224,7 +233,7 @@ class Generator {
                 exit(EXIT_FAILURE);
             }
             const Var& var = get_var(ident->ident.val.value());
-            if(var.type != Type::_int)
+            if(var.type != Type::_int && var.type != Type::_bool)
             {
                 std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'int' on line " << ident->ident.line << std::endl;
                 exit(EXIT_FAILURE);
@@ -249,34 +258,58 @@ class Generator {
         }
     }
 
-    inline void gen_internal(const NodeInternal* internal)
+    inline void gen_internal(const NodeInternal* internal, size_t loop_id)
     {
-        struct InternalVisitor {
-            Generator* const gen;
-            void operator()(const NodeInternalRet* ret) const
+        size_t val = internal->internal.index();
+        switch(val)
+        {
+            case 0: // Return
             {
-                gen->code << "    ;; Return\n";
-                gen->gen_expr(ret->ret);
-                gen->pop("rdi");
-                if(gen->sp % 2 != 0)
-                    gen->code << "    add rsp, " << (gen->sp) * 8 << "\n";
+                NodeInternalRet* ret = std::get<NodeInternalRet*>(internal->internal);
+                code << "    ;; Return\n";
+                gen_expr(ret->ret);
+                pop("rdi");
+                if(sp % 2 != 0)
+                    code << "    add rsp, " << (sp) * 8 << "\n";
                 else
-                    gen->code << "    add rsp, " << (gen->sp - 1) * 8 << "\n";
-                gen->code << "    mov rsp, rbp\n";
-                gen->pop("rbp");
-                gen->code << "    mov rax, 60\n";
-                gen->code << "    syscall\n";
-                gen->code << "\n";
+                    code << "    add rsp, " << (sp - 1) * 8 << "\n";
+                code << "    mov rsp, rbp\n";
+                pop("rbp");
+                code << "    mov rax, 60\n";
+                code << "    syscall\n";
+                code << "\n";
+                break;
             }
-            void operator()(const NodeInternalPrintf* print) const
+            case 1: // Printf
             {
+                NodeInternalPrintf* print = std::get<NodeInternalPrintf*>(internal->internal);
                 std::cout << "Printing is currently not supported" << std::endl;
-                return;
+                break;
             }
-        };
-
-        InternalVisitor visitor{this};
-        std::visit(visitor, internal->ret);
+            case 2: // Loop Flow
+            {
+                NodeLoopFlow* flow = std::get<NodeLoopFlow*>(internal->internal);
+                switch(*flow)
+                {
+                    case NodeLoopFlow::CONTINUE:
+                        code << "   jmp loop_" << loop_id << "_begin\n";
+                        break;
+                    case NodeLoopFlow::BREAK:
+                        code << "    jmp loop_" << loop_id << "_end\n";
+                        break;
+                    default:
+                        std::cerr << "Error: Unknown loop flow" << std::endl;
+                        exit(EXIT_FAILURE);
+                }
+                break;
+            }
+            default:
+            {
+                std::cerr << "Error: Unknown internal" << std::endl;
+                exit(EXIT_FAILURE);
+                break;
+            }
+        }
     }
 
     inline void gen_binary_expression(const NodeBinExpr* binexpr)
@@ -342,7 +375,7 @@ class Generator {
             gen_binary_term(eq->rhs);
             pop("rdi");
             pop("rax");
-            code << "    cmp rdi, rax\n";
+            code << "    cmp rax, rdi\n";
             code << "    sete al\n";
             code << "    movzx rax, al\n";
             push("rax");
@@ -355,7 +388,7 @@ class Generator {
             gen_binary_term(greater->rhs);
             pop("rdi");
             pop("rax");
-            code << "    cmp rdi, rax\n";
+            code << "    cmp rax, rdi\n";
             code << "    setg al\n";
             code << "    movzx rax, al\n";
             push("rax");
@@ -368,7 +401,7 @@ class Generator {
             gen_binary_term(less->rhs);
             pop("rdi");
             pop("rax");
-            code << "    cmp rdi, rax\n";
+            code << "    cmp rax, rdi\n";
             code << "    setl al\n";
             code << "    movzx rax, al\n";
             push("rax");
@@ -381,7 +414,7 @@ class Generator {
             gen_binary_term(greater_eq->rhs);
             pop("rdi");
             pop("rax");
-            code << "    cmp rdi, rax\n";
+            code << "    cmp rax, rdi\n";
             code << "    setge al\n";
             code << "    movzx rax, al\n";
             push("rax");
@@ -398,7 +431,7 @@ class Generator {
             gen_binary_term(neq->rhs);
             pop("rdi");
             pop("rax");
-            code << "    cmp rdi, rax\n";
+            code << "    cmp rax, rdi\n";
             code << "    setne al\n";
             code << "    movzx rax, al\n";
             push("rax");
@@ -501,8 +534,7 @@ class Generator {
     size_t sp = 0;
     size_t str_count = 0;
     size_t if_labels = 0;
-    size_t while_labels = 0;
-    size_t for_labels = 0;
+    size_t loop_labels = 0;
 
     std::vector<Var> vars;
     std::unordered_map<std::string, bool> internals_called;

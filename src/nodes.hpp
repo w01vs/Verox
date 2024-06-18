@@ -127,9 +127,14 @@ struct NodeInternalPrintf {
     NodeExpr* print;
 };
 
-// internal 'functions' such as return and possibly print etc.
+enum class NodeLoopFlow : char {
+    CONTINUE = 0,
+    BREAK = 1,
+};
+
+// internal functions (return, print) and functional keywords (continue, break)
 struct NodeInternal {
-    std::variant<NodeInternalRet*, NodeInternalPrintf*> ret; // return
+    std::variant<NodeInternalRet*, NodeInternalPrintf*, NodeLoopFlow*> internal; // internals
 };
 
 // variable declaration with a type.
