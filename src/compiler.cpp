@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
     }
 
     // Run GCC
-    int gcc_result = system("gcc -o verox.exe verox.obj");
+    int gcc_result = system("gcc -o verox.exe verox.obj -luser32 -lkernel32 -lmsvcrt");
     if (gcc_result != 0) {
         std::cerr << "GCC failed" << std::endl;
         return EXIT_FAILURE;
