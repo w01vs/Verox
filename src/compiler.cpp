@@ -52,8 +52,22 @@ int main(int argc, char* argv[])
     // std::string command = "usr/bin/nasm -felf64 " + path + "out.asm &&
     // usr/bin/ld " + path + "out.o -o " + path + "out"; std::cout << command <<
     // std::endl; system(command.c_str());
-    system("nasm -felf64 verox.asm");
-    system("gcc -o verox verox.o -lc");
+    //system("nasm -fwin64 verox.asm");
+    //system("gcc -v -o verox verox.obj -L<C:/mingw64/x86_64-w64-mingw32/lib> -lmsvcrt -masm=intel");
+
+    // Run NASM
+    int nasm_result = system("nasm -fwin64 verox.asm");
+    if (nasm_result != 0) {
+        std::cerr << "NASM failed" << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    // Run GCC
+    int gcc_result = system("gcc -o verox.exe verox.obj");
+    if (gcc_result != 0) {
+        std::cerr << "GCC failed" << std::endl;
+        return EXIT_FAILURE;
+    }
     
     return EXIT_SUCCESS;
 }
