@@ -122,7 +122,7 @@ class Lexer {
             else if(symbols(tokens, buf, lc)) {}
             else
             {
-                std::cerr << "dude what the fuck is that" << std::endl;
+                std::cerr << "dude what the fuck is that (this means the input file contains things that are not being parsed)" << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
@@ -200,6 +200,11 @@ class Lexer {
             }
             else if(buf == "continue") {
                 tokens.push_back({TokenType::_continue, lc, buf});
+                buf.clear();
+                return true;
+            }
+            else if(buf == "struct") {
+                tokens.push_back({TokenType::_struct, lc, buf});
                 buf.clear();
                 return true;
             }

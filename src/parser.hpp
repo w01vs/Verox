@@ -2,6 +2,7 @@
 #define PARSER_HPP
 
 #include "arena.hpp"
+#include "lexer.hpp"
 #include "nodes.hpp"
 #include "tokens.hpp"
 #include "type.hpp"
@@ -467,6 +468,8 @@ class Parser {
                 auto internal_expr = arena.emplace<NodeInternal>(ret);
                 return arena.emplace<NodeStmt>(internal_expr);
             }
+            else if(auto _struct = parse_struct()) {
+            }
             else if(peek().value().type == TokenType::_type && peek(1).has_value() && peek(1).value().type == TokenType::_ident && peek(2).has_value() && peek(2).value().type == TokenType::_assign)
             {
                 Type type = get_type(take());
@@ -585,9 +588,9 @@ class Parser {
 
     inline std::optional<NodeStmtAssign*> parse_assign()
     {
-        if(peek().has_value() && peek().value().type == TokenType::_ident)
+        if(auto id = try_take(TokenType::_if))
         {
-            auto ident = take();
+            auto ident = id.value();
             if(peek().has_value() && peek().value().type == TokenType::_assign)
             {
                 take();
@@ -679,6 +682,26 @@ class Parser {
         }
 
         return {};
+    }
+
+    std::optional<NodeStruct*> parse_struct() {
+        if(auto token = try_take(TokenType::_open_b)) {
+            if(auto name = try_take(TokenType::_ident))
+            auto struct_node = arena.emplace<NodeStruct>();
+            std::vector<std::pair<NodeIdent*, Type>> members;
+            while(peek().has_value() && peek().value().type != TokenType::_close_b) {
+                auto i = take();
+                auto end = std::find(typed_tokens.begin(), typed_tokens.end(), i.type);
+                if(typed_tokens.end() == end) {
+                   std::cerr << "StructError: Expected member data type, got xxx" << std::endl;
+                   exit(EXIT_FAILURE);
+                }
+            }
+            if(auto close_b = try_take(TokenType::_close_b)) {
+                struct_node->members = std::move(members);
+            }
+        }
+        return { };
     }
 
     // Refactor this to be more readable and probably split if, else and else if into seperate functions

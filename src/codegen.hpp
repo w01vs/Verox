@@ -283,7 +283,8 @@ class Generator {
             case 1: // Printf
             {
                 NodeInternalPrintf* print = std::get<NodeInternalPrintf*>(internal->internal);
-                std::cout << "Printing is currently not supported" << std::endl;
+                code << "    ;; Printf\n";
+                gen_expr(print->print);
                 break;
             }
             case 2: // Loop Flow

@@ -175,6 +175,12 @@ struct NodeIf {
     std::optional<NodeScope*> else_stmts;
 };
 
+struct NodeStruct {
+    std::string name;
+    std::vector<std::pair<NodeIdent*, Type>> members;
+    // eventually functions too
+};
+
 struct NodeProg {
     std::vector<NodeStmt*> stmts; // All statements outside scopes
 };

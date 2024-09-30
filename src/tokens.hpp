@@ -2,11 +2,14 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 enum class TokenType {
     // stuff
     _ret,           // return -> internal
-    _int_lit,         // immediate int
+    _int_lit,       // immediate int
+    _string,        // immediate string (ASCII)
+    _struct,        // struct
     _semi,          // ';'
     _type,          // a typename
     _ident,         // a variable name
@@ -18,6 +21,7 @@ enum class TokenType {
     _for,           // for
     _break,         // break
     _continue,      // continue
+    _bool,          // boolean type
     // Precedence
     _open_p,        // '('
     _close_p,       // ')'
@@ -28,7 +32,7 @@ enum class TokenType {
     _minus,         // '-'
     // Scope
     _open_b,        // '{'
-    _close_b,       // '{'
+    _close_b,       // '}'
     // Logic
     _true,          // boolean true
     _false,         // boolean false
@@ -49,3 +53,5 @@ struct Token {
     int line;
     std::optional<std::string> val{};
 };
+
+std::vector<TokenType> typed_tokens = { TokenType::_int_lit, TokenType::_string , TokenType::_bool};
