@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <map>
+#include "tokens.hpp"
 
 enum class Type { _int = 0, _bool = 1, _void = 2, undefined = 3, _untyped = 4, _string = 5 };
 
@@ -22,3 +24,5 @@ inline std::string print_type(Type type)
         break;
     }
 }
+
+std::map<TokenType, Type> token_type_map = { {TokenType::_int_lit, Type::_int}, {TokenType::_string, Type::_string}, {TokenType::_bool, Type::_bool} };

@@ -1,5 +1,5 @@
 #!/bin/bash
-
-./verox & echo Finished
-
-echo $?
+./verox
+status=$?
+echo Finished
+echo exit code: $status

@@ -1,6 +1,7 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 
+#pragma once
 #include "arena.hpp"
 #include "lexer.hpp"
 #include "nodes.hpp"
@@ -468,8 +469,7 @@ class Parser {
                 auto internal_expr = arena.emplace<NodeInternal>(ret);
                 return arena.emplace<NodeStmt>(internal_expr);
             }
-            else if(auto _struct = parse_struct()) {
-            }
+            else if(auto _struct = parse_struct()) {}
             else if(peek().value().type == TokenType::_type && peek(1).has_value() && peek(1).value().type == TokenType::_ident && peek(2).has_value() && peek(2).value().type == TokenType::_assign)
             {
                 Type type = get_type(take());
@@ -562,7 +562,8 @@ class Parser {
                     exit(EXIT_FAILURE);
                 }
             }
-            else if(auto brk = try_take(TokenType::_break)) {
+            else if(auto brk = try_take(TokenType::_break))
+            {
                 auto flow = arena.emplace<NodeLoopFlow>(NodeLoopFlow::BREAK);
                 auto internal = arena.emplace<NodeInternal>(flow);
                 auto stmt = arena.emplace<NodeStmt>(internal);
@@ -684,24 +685,40 @@ class Parser {
         return {};
     }
 
-    std::optional<NodeStruct*> parse_struct() {
-        if(auto token = try_take(TokenType::_open_b)) {
-            if(auto name = try_take(TokenType::_ident))
+    std::optional<NodeStruct*> parse_struct()
+    {
+        if(auto token = try_take(TokenType::_open_b))
+        {
             auto struct_node = arena.emplace<NodeStruct>();
+            
             std::vector<std::pair<NodeIdent*, Type>> members;
-            while(peek().has_value() && peek().value().type != TokenType::_close_b) {
+            while(peek().has_value() && peek().value().type != TokenType::_close_b)
+            {
                 auto i = take();
                 auto end = std::find(typed_tokens.begin(), typed_tokens.end(), i.type);
-                if(typed_tokens.end() == end) {
-                   std::cerr << "StructError: Expected member data type, got xxx" << std::endl;
-                   exit(EXIT_FAILURE);
+                if(typed_tokens.end() == end)
+                {
+                    std::cerr << "StructError: Expected member data type, got xxx" << std::endl;
+                    exit(EXIT_FAILURE);
                 }
+                NodeIdent* ident_node;
+                if(auto name = try_take(TokenType::_ident))
+                {
+                    ident_node = arena.emplace<NodeIdent>(name.value());
+                }
+                else {
+                    std::cerr << "SyntaxError: Expected identifier" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+
+                members.push_back({ident_node, token_type_map.at(*end)});
             }
-            if(auto close_b = try_take(TokenType::_close_b)) {
+            if(auto close_b = try_take(TokenType::_close_b))
+            {
                 struct_node->members = std::move(members);
             }
         }
-        return { };
+        return {};
     }
 
     // Refactor this to be more readable and probably split if, else and else if into seperate functions
