@@ -3,7 +3,6 @@
 
 #pragma once
 #include "arena.hpp"
-#include "lexer.hpp"
 #include "nodes.hpp"
 #include "tokens.hpp"
 #include "type.hpp"
@@ -469,7 +468,11 @@ class Parser {
                 auto internal_expr = arena.emplace<NodeInternal>(ret);
                 return arena.emplace<NodeStmt>(internal_expr);
             }
-            else if(auto _struct = parse_struct()) {}
+            else if(auto _struct = parse_struct())
+            {
+                auto stmt = arena.emplace<NodeStmt>();
+                stmt->var = _struct.value();
+            }
             else if(peek().value().type == TokenType::_type && peek(1).has_value() && peek(1).value().type == TokenType::_ident && peek(2).has_value() && peek(2).value().type == TokenType::_assign)
             {
                 Type type = get_type(take());
@@ -690,33 +693,62 @@ class Parser {
         if(auto token = try_take(TokenType::_open_b))
         {
             auto struct_node = arena.emplace<NodeStruct>();
-            
+
             std::vector<std::pair<NodeIdent*, Type>> members;
             while(peek().has_value() && peek().value().type != TokenType::_close_b)
             {
                 auto i = take();
-                auto end = std::find(typed_tokens.begin(), typed_tokens.end(), i.type);
-                if(typed_tokens.end() == end)
+                if(i.val.has_value()) 
                 {
-                    std::cerr << "StructError: Expected member data type, got xxx" << std::endl;
-                    exit(EXIT_FAILURE);
+                    auto struct_end = std::find(structs.begin(), structs.begin(), i.val.value());
+                    if(struct_end != structs.end()) {
+                        std::cerr << "StructError: This struct already exists" << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+                    
+                }
+                else
+                {
+                    auto end = std::find(typed_tokens.begin(), typed_tokens.end(), i.type);
+                    if(typed_tokens.end() == end)
+                    {
+                        std::cerr << "StructError: Expected member data type, got xxx" << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
                 }
                 NodeIdent* ident_node;
                 if(auto name = try_take(TokenType::_ident))
                 {
-                    ident_node = arena.emplace<NodeIdent>(name.value());
+                    ident_node = arena.emplace<NodeIdent>();
+                    ident_node->ident = name.value();
+                    struct_node->name = ident_node;
                 }
-                else {
+                else
+                {
                     std::cerr << "SyntaxError: Expected identifier" << std::endl;
                     exit(EXIT_FAILURE);
                 }
 
                 members.push_back({ident_node, token_type_map.at(*end)});
+                if(!semicolon())
+                {
+                    std::cerr << "SyntaxError: Expected ';' on line " << ident_node->ident.line;
+                    exit(EXIT_FAILURE);
+                }
             }
             if(auto close_b = try_take(TokenType::_close_b))
             {
                 struct_node->members = std::move(members);
+                if(!semicolon())
+                {
+                    std::cerr << "SyntaxError: Expected ';' on line " << close_b.value().line;
+                    exit(EXIT_FAILURE);
+                }
+                return struct_node;
             }
+
+            std::cerr << "SyntaxError: failed parsing struct" << std::endl;
+            exit(EXIT_FAILURE);
         }
         return {};
     }
@@ -840,6 +872,7 @@ class Parser {
     ArenaAllocator arena;
     size_t index = 0;
     std::map<std::string, Type> vars;
+    std::vector<std::string> structs;
 
     inline std::optional<Token> peek(const int offset = 0) const
     {

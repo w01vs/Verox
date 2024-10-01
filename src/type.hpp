@@ -25,4 +25,4 @@ inline std::string print_type(Type type)
     }
 }
 
-std::map<TokenType, Type> token_type_map = { {TokenType::_int_lit, Type::_int}, {TokenType::_string, Type::_string}, {TokenType::_bool, Type::_bool} };
+extern std::map<TokenType, Type> token_type_map;

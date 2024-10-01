@@ -54,4 +54,4 @@ struct Token {
     std::optional<std::string> val{};
 };
 
-std::vector<TokenType> typed_tokens = { TokenType::_int_lit, TokenType::_string , TokenType::_bool};
+extern std::vector<TokenType> typed_tokens;

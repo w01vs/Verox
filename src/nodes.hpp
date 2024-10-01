@@ -155,8 +155,15 @@ struct NodeStmtAssign {
 
 struct NodeWhile;
 
+
+struct NodeStruct {
+    NodeIdent* name;
+    std::vector<std::pair<NodeIdent*, Type>> members;
+    // eventually functions too
+};
+
 struct NodeStmt {
-    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*, NodeIf*, NodeStmtAssign*, NodeWhile*> var; // Internal stuff or variable
+    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*, NodeIf*, NodeStmtAssign*, NodeWhile*, NodeStruct*> var; // Internal stuff or variable
 };
 
 struct NodeScope {
@@ -173,12 +180,6 @@ struct NodeIf {
     NodeScope* scope;
     std::vector<NodeIf*> elseif_stmts;
     std::optional<NodeScope*> else_stmts;
-};
-
-struct NodeStruct {
-    std::string name;
-    std::vector<std::pair<NodeIdent*, Type>> members;
-    // eventually functions too
 };
 
 struct NodeProg {
