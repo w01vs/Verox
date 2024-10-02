@@ -132,10 +132,10 @@ class Lexer {
 
     inline bool keywords(std::vector<Token>& tokens, std::string& buf, int& lc)
     {
-        if(std::isalpha(peek().value()))
+    if(std::isalpha(peek().value()) || peek().value() == '_')
         {
             buf.push_back(take());
-            while(peek().has_value() && std::isalnum(peek().value())) { buf.push_back(take()); }
+            while(peek().has_value() && (std::isalnum(peek().value()) || peek().value() == '_')) { buf.push_back(take()); }
             if(buf == "return")
             {
                 tokens.push_back({TokenType::_ret, lc});
@@ -174,37 +174,37 @@ class Lexer {
             }
             else if(buf == "if")
             {
-                tokens.push_back({TokenType::_if, lc, buf});
+                tokens.push_back({TokenType::_if, lc});
                 buf.clear();
                 return true;
             }
             else if(buf == "else") {
-                tokens.push_back({TokenType::_else, lc, buf});
+                tokens.push_back({TokenType::_else, lc});
                 buf.clear();
                 return true;
             }
             else if(buf == "while") {
-                tokens.push_back({TokenType::_while, lc, buf});
+                tokens.push_back({TokenType::_while, lc});
                 buf.clear();
                 return true;
             }
             else if(buf == "for") {
-                tokens.push_back({TokenType::_for, lc, buf});
+                tokens.push_back({TokenType::_for, lc});
                 buf.clear();
                 return true;
             }
             else if(buf == "break") {
-                tokens.push_back({TokenType::_break, lc, buf});
+                tokens.push_back({TokenType::_break, lc});
                 buf.clear();
                 return true;
             }
             else if(buf == "continue") {
-                tokens.push_back({TokenType::_continue, lc, buf});
+                tokens.push_back({TokenType::_continue, lc});
                 buf.clear();
                 return true;
             }
             else if(buf == "struct") {
-                tokens.push_back({TokenType::_struct, lc, buf});
+                tokens.push_back({TokenType::_struct, lc});
                 buf.clear();
                 return true;
             }

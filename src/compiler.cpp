@@ -9,7 +9,6 @@
 #include "parser.hpp"
 #include "tokens.hpp"
 
-std::vector<TokenType> typed_tokens = { TokenType::_int_lit, TokenType::_string , TokenType::_bool};
 std::map<TokenType, Type> token_type_map = { {TokenType::_int_lit, Type::_int}, {TokenType::_string, Type::_string}, {TokenType::_bool, Type::_bool} };
 
 int main(int argc, char* argv[])

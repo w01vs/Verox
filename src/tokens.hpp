@@ -2,7 +2,6 @@
 
 #include <optional>
 #include <string>
-#include <vector>
 
 enum class TokenType {
     // stuff
@@ -53,5 +52,3 @@ struct Token {
     int line;
     std::optional<std::string> val{};
 };
-
-extern std::vector<TokenType> typed_tokens;

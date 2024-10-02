@@ -2,6 +2,7 @@
 #define CODEGEN_HPP
 
 #include "nodes.hpp"
+#include "type.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <iostream>
@@ -43,7 +44,7 @@ class Generator {
                 std::cerr << "Error: Identifier '" << var->ident.val.value() << "' has already been declared on line " << get_var(var->ident.val.value()).line << ", but was declared again on line " << var->ident.line << std::endl;
                 exit(EXIT_FAILURE);
             }
-            code << "    ;; Declaring variable " << '\'' << var->ident.val.value() << '\'' << " of type " << print_type(var->type) << '\n';
+            code << "    ;; Declaring variable " << '\'' << var->ident.val.value() << '\'' << " of type " << type_string(var->type) << '\n';
             vars.push_back({var->ident.val.value(), sp, var->type, var->ident.line});
             gen_expr(var->expr);
         }
@@ -66,8 +67,9 @@ class Generator {
                 exit(EXIT_FAILURE);
             }
             const Var& var = get_var(assign->ident.val.value());
-            if(var.type != assign->expr->type.value()) {
-                std::cerr << "Error: Identifier '" << assign->ident.val.value() << "' is not of type '" << print_type(assign->expr->type.value()) << "' on line " << assign->ident.line << std::endl;
+            if(var.type != assign->expr->type.value())
+            {
+                std::cerr << "Error: Identifier '" << assign->ident.val.value() << "' is not of type '" << type_string(assign->expr->type.value()) << "' on line " << assign->ident.line << std::endl;
                 exit(EXIT_FAILURE);
             }
 
@@ -80,6 +82,17 @@ class Generator {
         {
             NodeWhile* _while = std::get<NodeWhile*>(stmt->var);
             gen_while(_while);
+        }
+        else if(stmt->var.index() == 6) // Struct definition
+        { 
+            NodeStruct* _struct = std::get<NodeStruct*>(stmt->var);
+            gen_struct(_struct);
+        }
+    }
+
+    inline void gen_struct(NodeStruct* structstmt) {
+        if(!TypeControl::GetInstance().FindType(structstmt->type)) {
+
         }
     }
 
@@ -109,19 +122,20 @@ class Generator {
 
         for(int i = 0; i < ifstmt->elseif_stmts.size(); i++)
         {
-            
+
             auto iff = ifstmt->elseif_stmts.at(i);
             std::string label_elseif = "if_" + std::to_string(if_labels) + "_elseif_" + std::to_string(i);
             std::string label_next = "if_" + std::to_string(if_labels) + "_elseif_" + std::to_string(i + 1);
             if(i == 0)
-            {   
+            {
                 code << "    je " << label_elseif << "\n";
                 code << "    ;; First if statement\n";
                 gen_scope(ifstmt->scope);
                 code << "    jmp " << label_end << "\n";
                 code << label_elseif << ":\n";
             }
-            else {
+            else
+            {
                 code << label_elseif << ":\n";
             }
             code << "    ;; Begin elseif condition\n";
@@ -145,10 +159,9 @@ class Generator {
             }
 
             code << "    ;; End elseif condition\n";
-            
+
             gen_scope(iff->scope);
             code << "    jmp " << label_end << "\n";
-
         }
 
         if(ifstmt->else_stmts.has_value())
@@ -162,7 +175,8 @@ class Generator {
         code << label_end << ":\n";
     }
 
-    inline void gen_while(const NodeWhile* _while) {
+    inline void gen_while(const NodeWhile* _while)
+    {
         code << "    ;; While statement\n";
         std::string label_begin = "while_" + std::to_string(loop_labels) + "_begin";
         std::string label_end = "while_" + std::to_string(loop_labels) + "_end";
@@ -233,7 +247,7 @@ class Generator {
                 exit(EXIT_FAILURE);
             }
             const Var& var = get_var(ident->ident.val.value());
-            if(var.type != Type::_int && var.type != Type::_bool)
+            if(var.type != TypeControl::_int && var.type != TypeControl::_bool)
             {
                 std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'int' on line " << ident->ident.line << std::endl;
                 exit(EXIT_FAILURE);
@@ -263,53 +277,52 @@ class Generator {
         size_t val = internal->internal.index();
         switch(val)
         {
-            case 0: // Return
+        case 0: // Return
+        {
+            NodeInternalRet* ret = std::get<NodeInternalRet*>(internal->internal);
+            code << "    ;; Return\n";
+            gen_expr(ret->ret);
+            pop("rdi");
+            if(sp % 2 != 0)
+                code << "    add rsp, " << (sp) * 8 << "\n";
+            else
+                code << "    add rsp, " << (sp - 1) * 8 << "\n";
+            code << "    mov rsp, rbp\n";
+            pop("rbp");
+            code << "    mov rax, 60\n";
+            code << "    syscall\n";
+            code << "\n";
+            break;
+        }
+        case 1: // Printf
+        {
+            NodeInternalPrintf* print = std::get<NodeInternalPrintf*>(internal->internal);
+            code << "    ;; Printf\n";
+            gen_expr(print->print);
+            break;
+        }
+        case 2: // Loop Flow
+        {
+            NodeLoopFlow* flow = std::get<NodeLoopFlow*>(internal->internal);
+            switch(*flow)
             {
-                NodeInternalRet* ret = std::get<NodeInternalRet*>(internal->internal);
-                code << "    ;; Return\n";
-                gen_expr(ret->ret);
-                pop("rdi");
-                if(sp % 2 != 0)
-                    code << "    add rsp, " << (sp) * 8 << "\n";
-                else
-                    code << "    add rsp, " << (sp - 1) * 8 << "\n";
-                code << "    mov rsp, rbp\n";
-                pop("rbp");
-                code << "    mov rax, 60\n";
-                code << "    syscall\n";
-                code << "\n";
+            case NodeLoopFlow::CONTINUE:
+                code << "   jmp loop_" << loop_id << "_begin\n";
                 break;
-            }
-            case 1: // Printf
-            {
-                NodeInternalPrintf* print = std::get<NodeInternalPrintf*>(internal->internal);
-                code << "    ;; Printf\n";
-                gen_expr(print->print);
+            case NodeLoopFlow::BREAK:
+                code << "    jmp loop_" << loop_id << "_end\n";
                 break;
-            }
-            case 2: // Loop Flow
-            {
-                NodeLoopFlow* flow = std::get<NodeLoopFlow*>(internal->internal);
-                switch(*flow)
-                {
-                    case NodeLoopFlow::CONTINUE:
-                        code << "   jmp loop_" << loop_id << "_begin\n";
-                        break;
-                    case NodeLoopFlow::BREAK:
-                        code << "    jmp loop_" << loop_id << "_end\n";
-                        break;
-                    default:
-                        std::cerr << "Error: Unknown loop flow" << std::endl;
-                        exit(EXIT_FAILURE);
-                }
-                break;
-            }
             default:
-            {
-                std::cerr << "Error: Unknown internal" << std::endl;
+                std::cerr << "Error: Unknown loop flow" << std::endl;
                 exit(EXIT_FAILURE);
-                break;
             }
+            break;
+        }
+        default: {
+            std::cerr << "Error: Unknown internal" << std::endl;
+            exit(EXIT_FAILURE);
+            break;
+        }
         }
     }
 
@@ -451,7 +464,7 @@ class Generator {
                 exit(EXIT_FAILURE);
             }
             const Var& var = get_var(ident->ident.val.value());
-            if(var.type != Type::_bool)
+            if(var.type != TypeControl::_bool)
             {
                 std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'bool' on line " << ident->ident.line << std::endl;
                 exit(EXIT_FAILURE);
@@ -523,7 +536,7 @@ class Generator {
     struct Var {
         std::string name;
         size_t stackl;
-        Type type;
+        UserDefinedType type;
         int line;
     };
 
