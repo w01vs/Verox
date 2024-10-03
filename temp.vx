@@ -4,7 +4,12 @@ while(y < 5) {
 }
 
 struct a {
-    int w;
-    int c;
+    int a;
+    int b;
 };
+
+struct b {
+    a c;
+};
+
 return y;

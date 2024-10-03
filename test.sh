@@ -4,5 +4,5 @@
 
 if [ $? -eq 0 ]
 then
-    ./run.sh
+    ./crun.sh
 fi

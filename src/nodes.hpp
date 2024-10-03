@@ -156,7 +156,7 @@ struct NodeStmtAssign {
 struct NodeWhile;
 
 struct NodeStmt {
-    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*, NodeIf*, NodeStmtAssign*, NodeWhile*> var; // Internal stuff or variable
+    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*, NodeIf*, NodeStmtAssign*, NodeWhile*, bool> var; // Internal stuff or variable
 };
 
 struct NodeScope {

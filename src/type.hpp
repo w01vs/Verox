@@ -1,6 +1,5 @@
 #pragma once
 
-#include "tokens.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <map>
@@ -25,14 +24,14 @@ struct UDType {
 
 class TypeControl {
   public:
-    static TypeControl& GetInstance()
+    static TypeControl* GetInstance()
     {
         static TypeControl instance;
-        return instance;
+        return &instance;
     }
     int RegisterType(UDType type)
     {
-        typenames[type.name] = type;
+        typenames.emplace(type.name, type);
         return 0;
     }
     int UnregisterType(UDType type)
@@ -68,18 +67,18 @@ class TypeControl {
         RegisterType(_bool);
         RegisterType(_void);
     }
-    ~TypeControl();
+    ~TypeControl() = default;
     std::map<std::string, UDType> typenames;
 }; 
 
 inline std::string type_string(std::variant<UDType, Type> type)
 {
-    if(type.index() == 1)
+    if(type.index() == 0)
     {
         UDType t = std::get<UDType>(type);
         return t.name;
     }
-    else if(type.index() == 2)
+    else if(type.index() == 1)
     {
         Type t = std::get<Type>(type);
         switch(t)
@@ -101,5 +100,3 @@ inline std::string type_string(std::variant<UDType, Type> type)
     std::cerr << "type does not exist" << std::endl;
     exit(EXIT_FAILURE);
 }
-
-extern std::map<TokenType, Type> token_type_map;

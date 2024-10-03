@@ -20,7 +20,6 @@ enum class TokenType {
     _for,           // for
     _break,         // break
     _continue,      // continue
-    _bool,          // boolean type
     // Precedence
     _open_p,        // '('
     _close_p,       // ')'
