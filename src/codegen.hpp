@@ -83,17 +83,6 @@ class Generator {
             NodeWhile* _while = std::get<NodeWhile*>(stmt->var);
             gen_while(_while);
         }
-        else if(stmt->var.index() == 6) // Struct definition
-        { 
-            NodeStruct* _struct = std::get<NodeStruct*>(stmt->var);
-            gen_struct(_struct);
-        }
-    }
-
-    inline void gen_struct(NodeStruct* structstmt) {
-        if(!TypeControl::GetInstance().FindType(structstmt->type)) {
-
-        }
     }
 
     inline void gen_if(const NodeIf* ifstmt)
@@ -536,7 +525,7 @@ class Generator {
     struct Var {
         std::string name;
         size_t stackl;
-        UserDefinedType type;
+        UDType type;
         int line;
     };
 
