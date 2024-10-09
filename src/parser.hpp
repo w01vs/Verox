@@ -502,7 +502,7 @@ class Parser {
 
             if(!semicolon())
             {
-                std::cerr << "SyntaxError: Expected ';' on line" << close->line << std::endl;
+                std::cerr << "SyntaxError: Expected ';' on line" << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
