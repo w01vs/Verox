@@ -529,6 +529,14 @@ class Generator {
         int line;
     };
 
+    struct Chunk {
+        std::string name;
+        size_t start_stackl;
+        size_t size;
+        UDType type;
+        int line;
+    };
+
     const NodeProg* root;
     std::stringstream code;
     std::stringstream ext;

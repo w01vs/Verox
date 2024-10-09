@@ -8,7 +8,9 @@
 #include "lexer.hpp"
 #include "parser.hpp"
 #include "tokens.hpp"
+#include "type.hpp"
 
+std::map<Type, int> type_size = {{Type::_int, 8}, {Type::_bool, 1}, {Type::_void, 0}, {Type::_string, 8} };
 
 int main(int argc, char* argv[])
 {

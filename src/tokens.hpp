@@ -8,7 +8,6 @@ enum class TokenType {
     _ret,           // return -> internal
     _int_lit,       // immediate int
     _string,        // immediate string (ASCII)
-    _struct,        // struct
     _semi,          // ';'
     _type,          // a typename
     _ident,         // a variable name
@@ -44,10 +43,16 @@ enum class TokenType {
     _greater_eq,    // '>='
     _less_eq,       // '<='
     _neq,           // '!='
+    // struct things
+    _struct,        // struct
+    _dot,           // member field accessor
 };
 
 struct Token {
     TokenType type;
     int line;
     std::optional<std::string> val{};
+    Token() {}
+    Token(TokenType type, int line) : type(type), line(line) {}
+    Token(TokenType type, int line, std::string val) : type(type), line(line), val(val) {}
 };

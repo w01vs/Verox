@@ -138,79 +138,79 @@ class Lexer {
             while(peek().has_value() && (std::isalnum(peek().value()) || peek().value() == '_')) { buf.push_back(take()); }
             if(buf == "return")
             {
-                tokens.push_back({TokenType::_ret, lc});
+                tokens.emplace_back(TokenType::_ret, lc);
                 buf.clear();
                 return true;
             }
             else if(buf == "int")
             {
-                tokens.push_back({TokenType::_type, lc, buf});
+                tokens.emplace_back(TokenType::_type, lc, buf);
                 buf.clear();
                 return true;
             }
             else if(buf == "print")
             {
-                tokens.push_back({TokenType::_print, lc});
+                tokens.emplace_back(TokenType::_print, lc);
                 buf.clear();
                 return true;
             }
             else if(buf == "true")
             {
-                tokens.push_back({TokenType::_true, lc, buf});
+                tokens.emplace_back(TokenType::_true, lc, buf);
                 buf.clear();
                 return true;
             }
             else if(buf == "false")
             {
-                tokens.push_back({TokenType::_false, lc, buf});
+                tokens.emplace_back(TokenType::_false, lc, buf);
                 buf.clear();
                 return true;
             }
             else if(buf == "bool")
             {
-                tokens.push_back({TokenType::_type, lc, buf});
+                tokens.emplace_back(TokenType::_type, lc, buf);
                 buf.clear();
                 return true;
             }
             else if(buf == "if")
             {
-                tokens.push_back({TokenType::_if, lc});
+                tokens.emplace_back(TokenType::_if, lc);
                 buf.clear();
                 return true;
             }
             else if(buf == "else") {
-                tokens.push_back({TokenType::_else, lc});
+                tokens.emplace_back(TokenType::_else, lc);
                 buf.clear();
                 return true;
             }
             else if(buf == "while") {
-                tokens.push_back({TokenType::_while, lc});
+                tokens.emplace_back(TokenType::_while, lc);
                 buf.clear();
                 return true;
             }
             else if(buf == "for") {
-                tokens.push_back({TokenType::_for, lc});
+                tokens.emplace_back(TokenType::_for, lc);
                 buf.clear();
                 return true;
             }
             else if(buf == "break") {
-                tokens.push_back({TokenType::_break, lc});
+                tokens.emplace_back(TokenType::_break, lc);
                 buf.clear();
                 return true;
             }
             else if(buf == "continue") {
-                tokens.push_back({TokenType::_continue, lc});
+                tokens.emplace_back(TokenType::_continue, lc);
                 buf.clear();
                 return true;
             }
             else if(buf == "struct") {
-                tokens.push_back({TokenType::_struct, lc});
+                tokens.emplace_back(TokenType::_struct, lc);
                 buf.clear();
                 return true;
             }
             else
             {
-                tokens.push_back({TokenType::_ident, lc, buf});
+                tokens.emplace_back(TokenType::_ident, lc, buf);
                 buf.clear();
                 return true;
             }
@@ -224,7 +224,7 @@ class Lexer {
         {
             buf.push_back(take());
             while(peek().has_value() && std::isdigit(peek().value())) { buf.push_back(take()); }
-            tokens.push_back({TokenType::_int_lit, lc, buf});
+            tokens.emplace_back(TokenType::_int_lit, lc, buf);
             buf.clear();
             return true;
         }
@@ -236,7 +236,7 @@ class Lexer {
         if(peek().has_value() && peek().value() == ';')
         {
             take();
-            tokens.push_back({TokenType::_semi, lc});
+            tokens.emplace_back(TokenType::_semi, lc);
             return true;
         }
         else if(peek().has_value() && peek().value() == '=')
@@ -245,10 +245,10 @@ class Lexer {
             if(peek().has_value() && peek().value() == '=')
             {
                 take();
-                tokens.push_back({TokenType::_eq, lc});
+                tokens.emplace_back(TokenType::_eq, lc);
                 return true;
             }
-            tokens.push_back({TokenType::_assign, lc});
+            tokens.emplace_back(TokenType::_assign, lc);
             return true;
         }
         else if(peek().has_value() && peek().value() == '\n')
@@ -260,13 +260,13 @@ class Lexer {
         else if(peek().has_value() && peek().value() == '(')
         {
             take();
-            tokens.push_back({TokenType::_open_p, lc});
+            tokens.emplace_back(TokenType::_open_p, lc);
             return true;
         }
         else if(peek().has_value() && peek().value() == ')')
         {
             take();
-            tokens.push_back({TokenType::_close_p, lc});
+            tokens.emplace_back(TokenType::_close_p, lc);
             return true;
         }
         else if(peek().has_value() && std::isspace(peek().value()))
@@ -277,37 +277,37 @@ class Lexer {
         else if(peek().has_value() && peek().value() == '+')
         {
             take();
-            tokens.push_back({TokenType::_add, lc});
+            tokens.emplace_back(TokenType::_add, lc);
             return true;
         }
         else if(peek().has_value() && peek().value() == '-')
         {
             take();
-            tokens.push_back({TokenType::_minus, lc});
+            tokens.emplace_back(TokenType::_minus, lc);
             return true;
         }
         else if(peek().has_value() && peek().value() == '*')
         {
             take();
-            tokens.push_back({TokenType::_star, lc});
+            tokens.emplace_back(TokenType::_star, lc);
             return true;
         }
         else if(peek().has_value() && peek().value() == '/')
         {
             take();
-            tokens.push_back({TokenType::_fslash, lc});
+            tokens.emplace_back(TokenType::_fslash, lc);
             return true;
         }
         else if(peek().has_value() && peek().value() == '{')
         {
             take();
-            tokens.push_back({TokenType::_open_b, lc});
+            tokens.emplace_back(TokenType::_open_b, lc);
             return true;
         }
         else if(peek().has_value() && peek().value() == '}')
         {
             take();
-            tokens.push_back({TokenType::_close_b, lc});
+            tokens.emplace_back(TokenType::_close_b, lc);
             return true;
         }
         else if(peek().has_value() && peek().value() == '>')
@@ -316,10 +316,10 @@ class Lexer {
             if(peek().has_value() && peek().value() == '=')
             {
                 take();
-                tokens.push_back({TokenType::_greater_eq, lc});
+                tokens.emplace_back(TokenType::_greater_eq, lc);
                 return true;
             }
-            tokens.push_back({TokenType::_greater, lc});
+            tokens.emplace_back(TokenType::_greater, lc);
             return true;
         }
         else if(peek().has_value() && peek().value() == '<')
@@ -328,10 +328,10 @@ class Lexer {
             if(peek().has_value() && peek().value() == '=')
             {
                 take();
-                tokens.push_back({TokenType::_less_eq, lc});
+                tokens.emplace_back(TokenType::_less_eq, lc);
                 return true;
             }
-            tokens.push_back({TokenType::_less, lc});
+            tokens.emplace_back(TokenType::_less, lc);
             return true;
         }
         else if(peek().has_value() && peek().value() == '&')
@@ -339,7 +339,7 @@ class Lexer {
             take();
             if(peek().has_value() && peek().value() == '&') {
                 take();
-                tokens.push_back({TokenType::_and, lc});
+                tokens.emplace_back(TokenType::_and, lc);
                 return true;
             }
         }
@@ -348,14 +348,19 @@ class Lexer {
             take();
             if(peek().has_value() && peek().value() == '|') {
                 take();
-                tokens.push_back({TokenType::_or, lc});
+                tokens.emplace_back(TokenType::_or, lc);
                 return true;
             }
         }
         else if(peek().has_value() && peek().value() == '!')
         {
             take();
-            tokens.push_back({TokenType::_not, lc});
+            tokens.emplace_back(TokenType::_not, lc);
+            return true;
+        }
+        else if(peek().has_value() && peek().value() == '.') {
+            take();
+            tokens.emplace_back(TokenType::_dot, lc);
             return true;
         }
         

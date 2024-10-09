@@ -11,6 +11,7 @@ struct NodeIntLit {
 
 struct NodeIdent {
     Token ident; // var name
+    std::string structname;
 };
 
 struct NodeBool {
@@ -137,6 +138,16 @@ struct NodeInternal {
     std::variant<NodeInternalRet*, NodeInternalPrintf*, NodeLoopFlow*> internal; // internals
 };
 
+struct NodeStmtStructMove {
+    UDType type;
+    std::vector<std::variant<NodeExpr*, NodeStmtStructMove*>> exprs;
+};
+
+struct NodeStmtStruct {
+    Token ident;
+    NodeStmtStructMove* init;
+};
+
 // variable declaration with a type.
 struct NodeStmtVar {
     Token ident; // var name
@@ -156,7 +167,7 @@ struct NodeStmtAssign {
 struct NodeWhile;
 
 struct NodeStmt {
-    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*, NodeIf*, NodeStmtAssign*, NodeWhile*, bool> var; // Internal stuff or variable
+    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*, NodeIf*, NodeStmtAssign*, NodeWhile*, NodeStmtStruct*, bool> var; // Internal stuff or variable
 };
 
 struct NodeScope {

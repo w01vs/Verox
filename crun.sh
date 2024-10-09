@@ -5,8 +5,14 @@ if [ $? == 0 ]
 then
     ./verox
     status=$?
-    echo Finished
     echo exit code: $status
+    echo expected exit code: $1
+    if [ $1 == $status ]
+    then
+        echo SUCCESS!!!!!
+    else
+        echo "OOPS SOMETHING WENT WRONG"
+    fi
 fi
 
 if [ $? != 0 ]
