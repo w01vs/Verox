@@ -71,7 +71,7 @@ struct NodeCompExpr {
 
 struct NodeExpr {
     std::variant<NodeBinTerm*, NodeBinExpr*, NodeLogicTerm*, NodeLogicExpr*, NodeCompExpr*> var;
-    std::optional<UDType> type;
+    std::optional<GeneralType*> type;
 };
 
 struct NodeLogicExprAnd {
@@ -151,7 +151,7 @@ struct NodeStmtStruct {
 // variable declaration with a type.
 struct NodeStmtVar {
     Token ident; // var name
-    UDType type;
+    GeneralType* type;
     NodeExpr* expr; // var value
 };
 
@@ -162,6 +162,7 @@ struct NodeIf;
 struct NodeStmtAssign {
     Token ident; // var name
     NodeExpr* expr; // var value
+    std::optional<std::string> members;
 };
 
 struct NodeWhile;
