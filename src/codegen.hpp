@@ -30,58 +30,136 @@ class Generator {
 
     inline void gen_stmt(const NodeStmt* stmt, size_t loop_id = 0)
     {
-        if(stmt->var.index() == 0) // Internal
-        {
-            NodeInternal* var = std::get<NodeInternal*>(stmt->var);
-            gen_internal(var, loop_id);
-        }
-        else if(stmt->var.index() == 1) // Variable
-        {
 
-            NodeStmtVar* var = std::get<NodeStmtVar*>(stmt->var);
-            if(var_declared(var->ident.val.value()))
-            {
-                std::cerr << "Error: Identifier '" << var->ident.val.value() << "' has already been declared on line " << get_var(var->ident.val.value()).line << ", but was declared again on line " << var->ident.line << std::endl;
-                exit(EXIT_FAILURE);
-            }
-            code << "    ;; Declaring variable " << '\'' << var->ident.val.value() << '\'' << " of type " << type_string(var->type) << '\n';
-            vars.push_back({var->ident.val.value(), sp, var->type, var->ident.line});
-            gen_expr(var->expr);
-        }
-        else if(stmt->var.index() == 2) // Scope
+        switch(stmt->var.index())
         {
-            NodeScope* scope = std::get<NodeScope*>(stmt->var);
-            gen_scope(scope);
-        }
-        else if(stmt->var.index() == 3) // If statement
-        {
-            NodeIf* ifstmt = std::get<NodeIf*>(stmt->var);
-            gen_if(ifstmt);
-        }
-        else if(stmt->var.index() == 4) // Reassignment
-        {
-            NodeStmtAssign* assign = std::get<NodeStmtAssign*>(stmt->var);
-            if(!var_declared(assign->ident.val.value()))
+        case 0: // Internal things
             {
-                std::cerr << "Error: Identifier '" << assign->ident.val.value() << "' has not been declared on line " << assign->ident.line << std::endl;
-                exit(EXIT_FAILURE);
+                NodeInternal* var = std::get<NodeInternal*>(stmt->var);
+                gen_internal(var, loop_id);
+                break;
             }
-            const Var& var = get_var(assign->ident.val.value());
-            if(var.type != assign->expr->type.value())
+        case 1: // Declaration
             {
-                std::cerr << "Error: Identifier '" << assign->ident.val.value() << "' is not of type '" << type_string(assign->expr->type.value()) << "' on line " << assign->ident.line << std::endl;
-                exit(EXIT_FAILURE);
+                NodeStmtVarDecl* var = std::get<NodeStmtVarDecl*>(stmt->var);
+                if(is_declared(var->ident.val.value()))
+                {
+                    std::cerr << "Error: Identifier '" << var->ident.val.value() << "' has already been declared on line " << get_var(var->ident.val.value()).line << ", but was declared again on line " << var->ident.line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                code << "    ;; Declaring variable " << '\'' << var->ident.val.value() << '\'' << " of type " << var->type->name << '\n';
+                vars.push_back({var->ident.val.value(), sp, var->type, var->ident.line});
+                gen_expr(var->expr);
+                break;
             }
+        case 2: // Scope
+            {
+                NodeScope* scope = std::get<NodeScope*>(stmt->var);
+                gen_scope(scope);
+                break;
+            }
+        case 3: // If
+            {
+                NodeIf* ifstmt = std::get<NodeIf*>(stmt->var);
+                gen_if(ifstmt);
+                break;
+            }
+        case 4: // Assignment/Reassignment
+            {
+                NodeStmtAssign* assign = std::get<NodeStmtAssign*>(stmt->var);
+                if(!is_declared(assign->ident.val.value()))
+                {
+                    std::cerr << "Error: Identifier '" << assign->ident.val.value() << "' has not been declared on line " << assign->ident.line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
 
-            code << "    ;; Reassigning variable\n";
-            gen_expr(assign->expr);
-            pop("rax");
-            code << "    mov [rsp + " << (sp - var.stackl - 1) * 8 << "], rax\n\n";
+                switch(assign->expr.index())
+                {
+                case 0: // NodeExpr*
+                    {
+                        NodeExpr* expr = std::get<NodeExpr*>(assign->expr);
+                        if(!assign->members)
+                        {
+                            const Var& var = get_var(assign->ident.val.value());
+                            if(var.type != expr->type.value())
+                            {
+                                std::cerr << "Error: Identifier '" << assign->ident.val.value() << "' is not of type '" << expr->type.value()->name << "' on line " << assign->ident.line << std::endl;
+                                exit(EXIT_FAILURE);
+                            }
+
+                            code << "    ;; Reassigning variable\n";
+                            gen_expr(expr);
+                            pop("rax");
+                            code << "    mov [rsp + " << (sp - var.stackl - 1) * 8 << "], rax\n\n";
+                        }
+                        else
+                        {
+                            // this is a member variable
+
+                            
+                        }
+                        break;
+                    }
+                case 1: // NodeStmtStructMove
+                    {
+                        const Chunk& chunk = get_struct(assign->ident.val.value());
+
+                        NodeStmtStructMove* move = std::get<NodeStmtStructMove*>(assign->expr);
+                        if(*chunk.type != move->type)
+                        {
+                            std::cerr << "Error: Identifier '" << assign->ident.val.value() << "' is not of type '" << move->type.name << "' on line " << assign->ident.line << std::endl;
+                            exit(EXIT_FAILURE);
+                        }
+                        int _sp = sp;
+                        gen_struct_move(move);
+                        _sp = sp - _sp;
+
+                        break;
+                    }
+                }
+            }
+        case 5: // While loop
+            {
+                NodeWhile* _while = std::get<NodeWhile*>(stmt->var);
+                gen_while(_while);
+                break;
+            }
+        case 6:
+            {
+                NodeStmtStructDecl* s_assign = std::get<NodeStmtStructDecl*>(stmt->var);
+                gen_struct_expr(s_assign);
+                break;
+            }
         }
-        else if(stmt->var.index() == 5) // While statement
+    }
+
+    inline void gen_struct_expr(const NodeStmtStructDecl* decl)
+    {
+        struct_vars.emplace_back(decl->ident.val.value(), sp, (size_t)decl->init->type.bytes, &decl->init->type, decl->ident.line);
+        gen_struct_move(decl->init);
+    }
+
+    inline void gen_struct_move(const NodeStmtStructMove* smove)
+    {
+        for(int i = 0; i < smove->exprs.size(); i++)
         {
-            NodeWhile* _while = std::get<NodeWhile*>(stmt->var);
-            gen_while(_while);
+            auto item = smove->exprs.at(i);
+
+            switch(item.index())
+            {
+            case 0: // NodeExpr*
+                {
+                    NodeExpr* expr = std::get<NodeExpr*>(item);
+                    gen_expr(expr);
+                    break;
+                }
+            case 1: // NodeStmtStructMove*
+                {
+                    NodeStmtStructMove* move = std::get<NodeStmtStructMove*>(item);
+                    gen_struct_move(move);
+                    break;
+                }
+            }
         }
     }
 
@@ -230,15 +308,15 @@ class Generator {
         {
             int val;
             NodeIdent* ident = std::get<NodeIdent*>(term->val);
-            if(!var_declared(ident->ident.val.value()))
+            if(!is_declared(ident->ident.val.value()))
             {
                 std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
                 exit(EXIT_FAILURE);
             }
             const Var& var = get_var(ident->ident.val.value());
-            if(var.type != TypeControl::_int && var.type != TypeControl::_bool)
+            if(*var.type != TypeControl::_int && *var.type != TypeControl::_bool)
             {
-                std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'int' on line " << ident->ident.line << std::endl;
+                std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'int' or 'bool' on line " << ident->ident.line << std::endl;
                 exit(EXIT_FAILURE);
             }
             std::stringstream offset;
@@ -267,51 +345,52 @@ class Generator {
         switch(val)
         {
         case 0: // Return
-        {
-            NodeInternalRet* ret = std::get<NodeInternalRet*>(internal->internal);
-            code << "    ;; Return\n";
-            gen_expr(ret->ret);
-            pop("rdi");
-            if(sp % 2 != 0)
-                code << "    add rsp, " << (sp) * 8 << "\n";
-            else
-                code << "    add rsp, " << (sp - 1) * 8 << "\n";
-            code << "    mov rsp, rbp\n";
-            pop("rbp");
-            code << "    mov rax, 60\n";
-            code << "    syscall\n";
-            code << "\n";
-            break;
-        }
-        case 1: // Printf
-        {
-            NodeInternalPrintf* print = std::get<NodeInternalPrintf*>(internal->internal);
-            code << "    ;; Printf\n";
-            gen_expr(print->print);
-            break;
-        }
-        case 2: // Loop Flow
-        {
-            NodeLoopFlow* flow = std::get<NodeLoopFlow*>(internal->internal);
-            switch(*flow)
             {
-            case NodeLoopFlow::CONTINUE:
-                code << "   jmp loop_" << loop_id << "_begin\n";
+                NodeInternalRet* ret = std::get<NodeInternalRet*>(internal->internal);
+                code << "    ;; Return\n";
+                gen_expr(ret->ret);
+                pop("rdi");
+                if(sp % 2 != 0)
+                    code << "    add rsp, " << (sp) * 8 << "\n";
+                else
+                    code << "    add rsp, " << (sp - 1) * 8 << "\n";
+                code << "    mov rsp, rbp\n";
+                pop("rbp");
+                code << "    mov rax, 60\n";
+                code << "    syscall\n";
+                code << "\n";
                 break;
-            case NodeLoopFlow::BREAK:
-                code << "    jmp loop_" << loop_id << "_end\n";
-                break;
-            default:
-                std::cerr << "Error: Unknown loop flow" << std::endl;
-                exit(EXIT_FAILURE);
             }
-            break;
-        }
-        default: {
-            std::cerr << "Error: Unknown internal" << std::endl;
-            exit(EXIT_FAILURE);
-            break;
-        }
+        case 1: // Printf
+            {
+                NodeInternalPrintf* print = std::get<NodeInternalPrintf*>(internal->internal);
+                code << "    ;; Printf\n";
+                gen_expr(print->print);
+                break;
+            }
+        case 2: // Loop Flow
+            {
+                NodeLoopFlow* flow = std::get<NodeLoopFlow*>(internal->internal);
+                switch(*flow)
+                {
+                case NodeLoopFlow::CONTINUE:
+                    code << "   jmp loop_" << loop_id << "_begin\n";
+                    break;
+                case NodeLoopFlow::BREAK:
+                    code << "    jmp loop_" << loop_id << "_end\n";
+                    break;
+                default:
+                    std::cerr << "Error: Unknown loop flow" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                break;
+            }
+        default:
+            {
+                std::cerr << "Error: Unknown internal" << std::endl;
+                exit(EXIT_FAILURE);
+                break;
+            }
         }
     }
 
@@ -447,13 +526,13 @@ class Generator {
         if(term->val.index() == 0) // Identifier
         {
             NodeIdent* ident = std::get<NodeIdent*>(term->val);
-            if(!var_declared(ident->ident.val.value()))
+            if(!is_declared(ident->ident.val.value()))
             {
                 std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
                 exit(EXIT_FAILURE);
             }
             const Var& var = get_var(ident->ident.val.value());
-            if(var.type != TypeControl::_bool)
+            if(*var.type != TypeControl::_bool)
             {
                 std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'bool' on line " << ident->ident.line << std::endl;
                 exit(EXIT_FAILURE);
@@ -525,7 +604,7 @@ class Generator {
     struct Var {
         std::string name;
         size_t stackl;
-        UDType type;
+        GeneralType* type;
         int line;
     };
 
@@ -533,7 +612,7 @@ class Generator {
         std::string name;
         size_t start_stackl;
         size_t size;
-        UDType type;
+        UDType* type;
         int line;
     };
 
@@ -548,11 +627,14 @@ class Generator {
     size_t loop_labels = 0;
 
     std::vector<Var> vars;
+    std::vector<Chunk> struct_vars;
     std::unordered_map<std::string, bool> internals_called;
 
-    bool var_declared(std::string identifier) { return std::ranges::find(vars, identifier, &Var::name) != vars.end(); };
+    bool is_declared(std::string identifier) { return std::ranges::find(vars, identifier, &Var::name) != vars.end() || std::ranges::find(struct_vars, identifier, &Chunk::name) != struct_vars.end(); }
 
-    Var get_var(std::string identifier) { return *std::ranges::find(vars, identifier, &Var::name); };
+    Var get_var(std::string identifier) { return *std::ranges::find(vars, identifier, &Var::name); }
+
+    Chunk get_struct(std::string identifier) { return *std::ranges::find(struct_vars, identifier, &Chunk::name); }
 
     void gen_ret()
     {

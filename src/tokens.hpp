@@ -19,6 +19,7 @@ enum class TokenType {
     _for,           // for
     _break,         // break
     _continue,      // continue
+    _comma,         // ','
     // Precedence
     _open_p,        // '('
     _close_p,       // ')'

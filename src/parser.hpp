@@ -461,6 +461,12 @@ class Parser {
                         var.emplace_back(expr.value());
                     }
                 }
+
+                auto p = try_take(TokenType::_comma);
+                if(!p) {
+                    std::cerr << "SyntaxError: Expected ',' on line " << open->line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
             }
 
             if(auto close = try_take(TokenType::_close_b))
@@ -478,7 +484,7 @@ class Parser {
         return {};
     }
 
-    inline std::optional<NodeStmtStruct*> parse_ud_declaration()
+    inline std::optional<NodeStmtStructDecl*> parse_ud_declaration()
     {
         if((peek().value().type == TokenType::_ident) && peek(1).has_value() && peek(1).value().type == TokenType::_ident && peek(2).has_value() && peek(2).value().type == TokenType::_open_b)
         {
@@ -492,7 +498,7 @@ class Parser {
             vars.insert({name.val.value(), type});
             if(auto str = parse_inline_ud_decl(*type))
             {
-                auto struct_ = arena.emplace<NodeStmtStruct>();
+                auto struct_ = arena.emplace<NodeStmtStructDecl>();
                 return struct_;
             }
 
@@ -506,7 +512,7 @@ class Parser {
         return {};
     }
 
-    inline std::optional<NodeStmtVar*> parse_declaration()
+    inline std::optional<NodeStmtVarDecl*> parse_declaration()
     {
         if((peek().value().type == TokenType::_type) && peek(1).has_value() && peek(1).value().type == TokenType::_ident && peek(2).has_value() && peek(2).value().type == TokenType::_assign)
         {
@@ -517,7 +523,7 @@ class Parser {
                 exit(EXIT_FAILURE);
             }
 
-            auto stmt_var = arena.emplace<NodeStmtVar>(take(), *type);
+            auto stmt_var = arena.emplace<NodeStmtVarDecl>(take(), *type);
             take(); // take '=' operator
             if(auto expr = parse_expr(*type))
             {
@@ -664,7 +670,7 @@ class Parser {
         return {};
     }
 
-    inline std::optional<NodeStmtAssign*> parse_member_assign(UDType* type, std::string = "")
+    inline std::optional<NodeStmtAssign*> parse_member_assign(UDType* type, std::string mems = "")
     {
         if(auto dot = try_take(TokenType::_dot))
         {
@@ -685,14 +691,27 @@ class Parser {
                 if(auto assign = try_take(TokenType::_assign))
                 {
 
-                    auto node = arena.emplace<NodeStmtAssign*>();
+                    auto node = arena.emplace<NodeStmtAssign>();
 
                     GeneralType* expr_type = type->members.at(ident->val.value());
                     UDType* ptr = dynamic_cast<UDType*>(expr_type);
                     if(ptr == nullptr)
-                        parse_expr(*expr_type);
+                    {
+                        auto res = parse_expr(*expr_type);
+                        if(res)
+                        {
+                            node->expr = res.value();
+                        }
+                    }
                     else
-                        parse_inline_ud_decl(*ptr);
+                    {
+                        auto res = parse_inline_ud_decl(*ptr);
+                        if(res) { 
+                            node->expr = res.value();
+                        }
+                    }
+                    node->members = mems;
+                    return node;
                 }
                 else
                 {
@@ -711,40 +730,56 @@ class Parser {
         {
             auto ident = id.value();
             GeneralType* type = TypeControl::GetInstance()->FindType(id->val.value());
+            if(type == nullptr)
+            {
+                std::cerr << "Type does not exist on line " << ident.line << std::endl;
+                exit(EXIT_FAILURE);
+            }
             UDType* stype = dynamic_cast<UDType*>(type);
             if(peek().has_value() && peek().value().type == TokenType::_assign)
             {
-                take();
-                auto assign = arena.emplace<NodeStmtAssign>();
-                assign->ident = ident;
-                if(vars.find(ident.val.value()) == vars.end())
+                if(stype == nullptr)
                 {
-                    std::cerr << "SyntaxError: Variable '" << ident.val.value() << "' is not defined" << std::endl;
-                    exit(EXIT_FAILURE);
-                }
-                GeneralType* type = vars.at(ident.val.value());
-                if(auto parse = parse_expr(*type))
-                {
-                    assign->expr = parse.value();
-                    assign->expr->type = type;
-                }
-                else
-                {
-                    std::cerr << "SyntaxError: Expected expression on line " << peek().value().line << std::endl;
-                    exit(EXIT_FAILURE);
-                }
+                    take();
+                    auto assign = arena.emplace<NodeStmtAssign>();
+                    assign->ident = ident;
+                    if(vars.find(ident.val.value()) == vars.end())
+                    {
+                        std::cerr << "SyntaxError: Variable '" << ident.val.value() << "' is not defined" << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+                    GeneralType* type = vars.at(ident.val.value());
+                    if(auto parse = parse_expr(*type))
+                    {
+                        assign->expr = parse.value();
+                        switch(assign->expr.index())
+                        {
+                        case 0: // NodeExpr*
+                            {
+                                NodeExpr* expr = std::get<NodeExpr*>(assign->expr);
+                                expr->type = type;
+                            }
+                            // other case doesn't exist since it will be a UDType
+                        }
+                    }
+                    else
+                    {
+                        std::cerr << "SyntaxError: Expected expression on line " << peek().value().line << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
 
-                if(semicolon()) {}
-                else
-                {
-                    std::cerr << "SyntaxError: Expected ';' on line " << peek().value().line << std::endl;
-                    exit(EXIT_FAILURE);
+                    if(semicolon()) {}
+                    else
+                    {
+                        std::cerr << "SyntaxError: Expected ';' on line " << peek().value().line << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+                    return assign;
                 }
-                return assign;
-            }
-            else if(auto pma = parse_member_assign(stype)) // member variable assignment
-            {
-                return pma;
+                else if(auto pma = parse_member_assign(stype)) // member variable assignment -> requires type to be UDType
+                {
+                    return pma;
+                }
             }
             else
             {

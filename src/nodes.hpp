@@ -143,13 +143,13 @@ struct NodeStmtStructMove {
     std::vector<std::variant<NodeExpr*, NodeStmtStructMove*>> exprs;
 };
 
-struct NodeStmtStruct {
+struct NodeStmtStructDecl {
     Token ident;
     NodeStmtStructMove* init;
 };
 
 // variable declaration with a type.
-struct NodeStmtVar {
+struct NodeStmtVarDecl {
     Token ident; // var name
     GeneralType* type;
     NodeExpr* expr; // var value
@@ -161,14 +161,14 @@ struct NodeIf;
 
 struct NodeStmtAssign {
     Token ident; // var name
-    NodeExpr* expr; // var value
+    std::variant<NodeExpr*, NodeStmtStructMove*> expr; // var value
     std::optional<std::string> members;
 };
 
 struct NodeWhile;
 
 struct NodeStmt {
-    std::variant<NodeInternal*, NodeStmtVar*, NodeScope*, NodeIf*, NodeStmtAssign*, NodeWhile*, NodeStmtStruct*, bool> var; // Internal stuff or variable
+    std::variant<NodeInternal*, NodeStmtVarDecl*, NodeScope*, NodeIf*, NodeStmtAssign*, NodeWhile*, NodeStmtStructDecl*, bool> var; // Internal stuff or variable
 };
 
 struct NodeScope {

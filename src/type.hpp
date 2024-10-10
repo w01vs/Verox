@@ -69,7 +69,7 @@ class TypeControl {
     TypeControl(const TypeControl& other) = delete;
     TypeControl& operator=(const TypeControl& other) = delete;
     inline static const GeneralType _int = GeneralType("int", 8);
-    inline static const GeneralType _bool = GeneralType("bool", 1);
+    inline static const GeneralType _bool = GeneralType("bool", 8);
     inline static const GeneralType _void = GeneralType("void", 0);
     inline static const GeneralType _string = GeneralType("string", 8);
     inline static const GeneralType _undefined = GeneralType("undefined", 0);

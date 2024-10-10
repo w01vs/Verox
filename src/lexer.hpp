@@ -363,6 +363,11 @@ class Lexer {
             tokens.emplace_back(TokenType::_dot, lc);
             return true;
         }
+        else if(peek().has_value() && peek().value() == ',') {
+            take();
+            tokens.emplace_back(TokenType::_comma, lc);
+            return true;
+        }
         
         return false;
     }
