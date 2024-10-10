@@ -463,7 +463,8 @@ class Parser {
                 }
 
                 auto p = try_take(TokenType::_comma);
-                if(!p) {
+                if(!p)
+                {
                     std::cerr << "SyntaxError: Expected ',' on line " << open->line << std::endl;
                     exit(EXIT_FAILURE);
                 }
@@ -706,7 +707,8 @@ class Parser {
                     else
                     {
                         auto res = parse_inline_ud_decl(*ptr);
-                        if(res) { 
+                        if(res)
+                        {
                             node->expr = res.value();
                         }
                     }

@@ -95,8 +95,20 @@ class Generator {
                         else
                         {
                             // this is a member variable
-
-                            
+                            auto member_names = split(assign->members.value(), ".");
+                            const Chunk& chunk = get_struct(assign->ident.val.value());
+                            int offset = 0;
+                            for(std::string& s : member_names) {
+                                GeneralType* t = TypeControl::GetInstance()->FindType(s);
+                                UDType* udt = dynamic_cast<UDType*>(t);
+                                if(udt != nullptr) {
+                                    offset += udt->offsets.at(s);
+                                }
+                            }
+                            code << "    ;; Reassigning variable\n";
+                            gen_expr(expr);
+                            pop("rax");
+                            code << "    mov [rsp + " << (sp - chunk.start_stackl + offset - 1) * 8 << "], rax\n\n";
                         }
                         break;
                     }
@@ -656,6 +668,22 @@ class Generator {
     {
         code << "    push " << reg << "\n";
         sp++;
+    }
+
+    inline std::vector<std::string> split(std::string s, const std::string& delimiter)
+    {
+        std::vector<std::string> tokens;
+        size_t pos = 0;
+        std::string token;
+        while((pos = s.find(delimiter)) != std::string::npos)
+        {
+            token = s.substr(0, pos);
+            tokens.push_back(token);
+            s.erase(0, pos + delimiter.length());
+        }
+        tokens.push_back(s);
+
+        return tokens;
     }
 };
 
