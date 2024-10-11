@@ -675,7 +675,9 @@ class Generator {
                 }
                 std::stringstream offs;
                 code << "    ;; Loading variable '" << ident->ident.val.value() << "'\n";
-                offs << "QWORD [rsp + " << (sp - ch.start_stackl + (offset / 8) - 1) * 8 << "]";
+                int y = ch.start_stackl + (offset / 8);
+                int x = (sp - y - 1) * 8;
+                offs << "QWORD [rsp + " << x << "]";
                 push(offs.str());
                 code << "\n";
             }
