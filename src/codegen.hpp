@@ -73,7 +73,8 @@ class Generator {
             {
                 std::cerr << "73\n";
                 NodeStmtAssign* assign = std::get<NodeStmtAssign*>(stmt->var);
-                if(!is_declared(assign->ident.val.value()))
+                std::vector<std::string> ss = split(assign->ident.val.value(), ".");
+                if(!is_declared(ss.at(0)))
                 {
                     std::cerr << "Error: Identifier '" << assign->ident.val.value() << "' has not been declared on line " << assign->ident.line << std::endl;
                     exit(EXIT_FAILURE);
@@ -94,7 +95,7 @@ class Generator {
                                 exit(EXIT_FAILURE);
                             }
 
-                            code << "    ;; Reassigning variable\n";
+                            code << "    ;; Reassigning variable '" << assign->ident.val.value() << "'\n";
                             gen_expr(expr);
                             pop("rax");
                             code << "    mov [rsp + " << (sp - var.stackl - 1) * 8 << "], rax\n\n";
@@ -103,21 +104,35 @@ class Generator {
                         {
                             // this is a member variable
                             auto member_names = split(assign->members.value(), ".");
-                            const Chunk& chunk = get_struct(assign->ident.val.value());
+                            const Chunk& chunk = get_struct(member_names.at(0));
                             int offset = 0;
-                            for(std::string& s : member_names)
+                            const UDType* t = nullptr;
+
+                            const UDType* type = dynamic_cast<const UDType*>(chunk.type);
+                            for(int i = 1; i < ss.size(); i++)
                             {
-                                const GeneralType* t = TypeControl::GetInstance()->FindType(s);
-                                const UDType* udt = dynamic_cast<const UDType*>(t);
-                                if(udt != nullptr)
+                                const GeneralType* x = type->members.at(ss[i]);
+                                t = dynamic_cast<const UDType*>(x);
+                                if(t == nullptr)
                                 {
-                                    offset += udt->offsets.at(s);
+                                    if(*x != TypeControl::_int && *x != TypeControl::_bool)
+                                    {
+                                        std::cerr << "Error: Member variable '" << assign->ident.val.value() << "' is not of type 'int' or 'bool' on line " << assign->ident.line << std::endl;
+                                        exit(EXIT_FAILURE);
+                                    }
                                 }
+
+                                offset += type->offsets.at(ss[i]);
+
+                                if(t != nullptr)
+                                    type = t;
                             }
-                            code << "    ;; Reassigning variable\n";
+                            code << "    ;; Reassigning variable '" << assign->ident.val.value() << "'\n";
                             gen_expr(expr);
                             pop("rax");
-                            code << "    mov [rsp + " << (sp - chunk.start_stackl + offset - 1) * 8 << "], rax\n\n";
+                            int y = chunk.start_stackl + (offset / 8);
+                            int x = (sp - y - 1) * 8;
+                            code << "    mov [rsp + " << x << "], rax\n\n";
                         }
                         break;
                     }
@@ -131,10 +146,7 @@ class Generator {
                             std::cerr << "Error: Identifier '" << assign->ident.val.value() << "' is not of type '" << move->type.name << "' on line " << assign->ident.line << std::endl;
                             exit(EXIT_FAILURE);
                         }
-                        int _sp = sp;
                         gen_struct_move(move);
-                        _sp = sp - _sp;
-
                         break;
                     }
                 default:
@@ -164,6 +176,7 @@ class Generator {
     inline void gen_struct_expr(const NodeStmtStructDecl* decl)
     {
         struct_vars.emplace_back(decl->ident.val.value(), sp, (size_t)decl->init->type.bytes, &decl->init->type, decl->ident.line);
+        code << ";; Declaring variable '" << decl->ident.val.value() << "'\n";
         gen_struct_move(decl->init);
     }
 
@@ -376,8 +389,10 @@ class Generator {
                         type = t;
                 }
                 std::stringstream offs;
-                code << "    ;; Loading variable '" << ch.name << "'\n";
-                offs << "QWORD [rsp + " << (sp - (sp - ch.start_stackl + (offset / 8)) - 1) * 8 << "]";
+                code << "    ;; Loading variable '" << ident->ident.val.value() << "'\n";
+                int y = ch.start_stackl + (offset / 8);
+                int x = (sp - y - 1) * 8;
+                offs << "QWORD [rsp + " << x << "]";
                 push(offs.str());
                 code << "\n";
             }
@@ -395,7 +410,7 @@ class Generator {
                     exit(EXIT_FAILURE);
                 }
                 std::stringstream offset;
-                code << "    ;; Loading variable '" << var.name << "'\n";
+                code << "    ;; Loading variable '" << ident->ident.val.value() << "'\n";
                 offset << "QWORD [rsp + " << (sp - var.stackl - 1) * 8 << "]";
                 push(offset.str());
                 code << "\n";
@@ -637,11 +652,13 @@ class Generator {
                 }
                 const Chunk& ch = get_struct(ss.at(0));
                 int offset = 0;
-                UDType* t = nullptr;
-                for(int i = 0; i < ss.size(); i++)
+                const UDType* t = nullptr;
+
+                const UDType* type = dynamic_cast<const UDType*>(ch.type);
+                for(int i = 1; i < ss.size(); i++)
                 {
-                    GeneralType* x = ch.type->members.at(ss[i]);
-                    t = dynamic_cast<UDType*>(x);
+                    const GeneralType* x = type->members.at(ss[i]);
+                    t = dynamic_cast<const UDType*>(x);
                     if(t == nullptr)
                     {
                         if(*x != TypeControl::_int && *x != TypeControl::_bool)
@@ -651,11 +668,14 @@ class Generator {
                         }
                     }
 
-                    offset += ch.type->offsets.at(ss[i]);
+                    offset += type->offsets.at(ss[i]);
+
+                    if(t != nullptr)
+                        type = t;
                 }
                 std::stringstream offs;
-                code << "    ;; Loading variable '" << ch.name << "'\n";
-                offs << "QWORD [rsp + " << (sp - (sp - ch.start_stackl + (offset / 8)) - 1) * 8 << "]";
+                code << "    ;; Loading variable '" << ident->ident.val.value() << "'\n";
+                offs << "QWORD [rsp + " << (sp - ch.start_stackl + (offset / 8) - 1) * 8 << "]";
                 push(offs.str());
                 code << "\n";
             }
@@ -673,7 +693,7 @@ class Generator {
                     exit(EXIT_FAILURE);
                 }
                 std::stringstream offset;
-                code << "    ;; Loading variable '" << var.name << "'\n";
+                code << "    ;; Loading variable '" << ident->ident.val.value() << "'\n";
                 offset << "QWORD [rsp + " << (sp - var.stackl - 1) * 8 << "]";
                 push(offset.str());
                 code << "\n";
@@ -776,9 +796,9 @@ class Generator {
 
     bool is_declared(std::string identifier) { return (std::ranges::find(vars, identifier, &Var::name) != vars.end() || std::ranges::find(struct_vars, identifier, &Chunk::name) != struct_vars.end()); }
 
-    Var get_var(std::string identifier) { return *std::ranges::find(vars, identifier, &Var::name); }
+    Var& get_var(std::string identifier) { return *std::ranges::find(vars, identifier, &Var::name); }
 
-    Chunk get_struct(std::string identifier) { return *std::ranges::find(struct_vars, identifier, &Chunk::name); }
+    Chunk& get_struct(std::string identifier) { return *std::ranges::find(struct_vars, identifier, &Chunk::name); }
 
     void gen_ret()
     {

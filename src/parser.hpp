@@ -241,7 +241,8 @@ class Parser {
         {
             return "." + parse_member("");
         }
-        if(can_end) {
+        if(can_end)
+        {
             return "";
         }
         std::cerr << "SyntaxError: Expected identifier or '.' on line " << peek(-1)->line << std::endl;
@@ -535,7 +536,7 @@ class Parser {
                 return struct_;
             }
             std::cerr << "SyntaxError: Expected struct initialisation on line " << peek(-1)->line << std::endl;
-            exit(EXIT_FAILURE); 
+            exit(EXIT_FAILURE);
         }
 
         return {};
@@ -704,68 +705,13 @@ class Parser {
         return {};
     }
 
-    inline std::optional<NodeStmtAssign*> parse_member_assign(const UDType* type, std::string mems = "")
-    {
-        if(auto dot = try_take(TokenType::_dot))
-        {
-            if(auto ident = try_take(TokenType::_ident))
-            {
-                if(peek().has_value() && peek().value().type == TokenType::_dot)
-                {
-                    UDType* t = dynamic_cast<UDType*>(type->members.at(ident->val.value()));
-                    if(t != nullptr)
-                        return parse_member_assign(t, "." + ident->val.value());
-                    else
-                    {
-                        std::cerr << "type shenanigans at line 683, assigning a member variable" << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
-                }
-
-                if(auto assign = try_take(TokenType::_assign))
-                {
-
-                    auto node = arena.emplace<NodeStmtAssign>();
-
-                    GeneralType* expr_type = type->members.at(ident->val.value());
-                    UDType* ptr = dynamic_cast<UDType*>(expr_type);
-                    if(ptr == nullptr)
-                    {
-                        auto res = parse_expr(*expr_type);
-                        if(res)
-                        {
-                            node->expr = res.value();
-                        }
-                    }
-                    else
-                    {
-                        auto res = parse_inline_ud_decl(*ptr);
-                        if(res)
-                        {
-                            node->expr = res.value();
-                        }
-                    }
-                    node->members = mems;
-                    return node;
-                }
-                else
-                {
-                    std::cerr << "SyntaxError: Expected '=' on line " << ident->line << std::endl;
-                }
-            }
-            std::cerr << "SyntaxError: Expected member identifier on line " << dot->line << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        return {};
-    }
-
     inline std::optional<NodeStmtAssign*> parse_assign()
     {
         if(peek().value().type == TokenType::_ident)
         {
             Token ident;
             std::string t = "";
-            if(peek().has_value() && peek().value().type == TokenType::_dot)
+            if(peek(1).has_value() && peek(1).value().type == TokenType::_dot)
             {
                 ident = take();
                 t = parse_member();
@@ -783,7 +729,8 @@ class Parser {
             }
 
             ident.val.value() += t;
-            const GeneralType* type = vars.at(ident.val.value());
+            std::vector<std::string> ss = split(ident.val.value(), ".");
+            const GeneralType* type = vars.at(ss.at(0));
             if(type == nullptr)
             {
                 std::cerr << "Type does not exist on line " << ident.line << std::endl;
@@ -792,9 +739,9 @@ class Parser {
             const UDType* stype = dynamic_cast<const UDType*>(type);
             if(peek().has_value() && peek().value().type == TokenType::_assign)
             {
+                take(); // take '='
                 if(stype == nullptr)
                 {
-                    take();
                     auto assign = arena.emplace<NodeStmtAssign>();
                     assign->ident = ident;
                     if(vars.find(ident.val.value()) == vars.end())
@@ -823,17 +770,43 @@ class Parser {
                         exit(EXIT_FAILURE);
                     }
 
-                    if(semicolon()) {}
-                    else
+                    if(!semicolon())
                     {
                         std::cerr << "SyntaxError: Expected ';' on line " << peek().value().line << std::endl;
                         exit(EXIT_FAILURE);
                     }
                     return assign;
                 }
-                else if(auto pma = parse_member_assign(stype)) // member variable assignment -> requires type to be UDType
+                else
                 {
-                    return pma;
+                    auto node = arena.emplace<NodeStmtAssign>();
+                    node->ident = ident;
+                    UDType* t = nullptr;
+                    for(int i = 1; i < ss.size(); i++)
+                    {
+                        GeneralType* x = stype->members.at(ss[i]);
+                        t = dynamic_cast<UDType*>(x);
+                        if(t == nullptr)
+                        {
+                            if(auto expr = parse_expr(*x))
+                            {
+                                node->expr = expr.value();
+                                node->members = ident.val.value();
+                                break;
+                            }
+                            std::cerr << "Failed parsing expression of type " << x->name << std::endl;
+                            exit(EXIT_FAILURE);
+                        }
+                        stype = t;
+                    }
+
+                    if(!semicolon())
+                    {
+                        std::cerr << "SyntaxError: Expected ';' on line " << peek(-1).value().line << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+
+                    return node;
                 }
             }
             else
@@ -991,10 +964,11 @@ class Parser {
     // Refactor this to be more readable and probably split if, else and else if into seperate functions
     inline std::optional<NodeIf*> parse_if(bool chained = false)
     {
-        std::vector<NodeIf*> nested_ifs;
-        auto node_if = arena.emplace<NodeIf>();
+
         if(auto _if = try_take(TokenType::_if))
         {
+            std::vector<NodeIf*> nested_ifs;
+            auto node_if = arena.emplace<NodeIf>();
             if(auto open_p = try_take(TokenType::_open_p))
             {
                 if(auto expr = parse_logic_expr())
@@ -1135,6 +1109,22 @@ class Parser {
         if(peek().has_value() && peek().value().type == token)
             return take();
         return {};
+    }
+
+    inline std::vector<std::string> split(std::string s, const std::string& delimiter)
+    {
+        std::vector<std::string> tokens;
+        size_t pos = 0;
+        std::string token;
+        while((pos = s.find(delimiter)) != std::string::npos)
+        {
+            token = s.substr(0, pos);
+            tokens.push_back(token);
+            s.erase(0, pos + delimiter.length());
+        }
+        tokens.push_back(s);
+
+        return tokens;
     }
 };
 

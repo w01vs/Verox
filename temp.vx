@@ -3,6 +3,7 @@ while(y < 5) {
     y = y + 1;
 }
 
+y = 9;
 struct a {
     int a;
     int b;
@@ -13,6 +14,10 @@ struct b {
 };
 
 
-b str{{10, 5}};
+b str{{15, 5}};
 
-return str.c.b;
+a st{1, 2};
+str.c.b = 10;
+
+str.c.a = st.a;
+return str.c.a;
