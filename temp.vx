@@ -12,4 +12,7 @@ struct b {
     a c;
 };
 
-return y;
+
+b str{{10, 5}};
+
+return str.c.b;

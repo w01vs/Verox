@@ -231,7 +231,22 @@ class Parser {
         }
         return scope;
     }
-
+    inline std::string parse_member(std::string mems = "", bool can_end = false)
+    {
+        if(auto id = try_take(TokenType::_ident))
+        {
+            return id->val.value() + parse_member("", true);
+        }
+        else if(auto dot = try_take(TokenType::_dot))
+        {
+            return "." + parse_member("");
+        }
+        if(can_end) {
+            return "";
+        }
+        std::cerr << "SyntaxError: Expected identifier or '.' on line " << peek(-1)->line << std::endl;
+        exit(EXIT_FAILURE);
+    }
     inline NodeCompExpr* parse_comp_expr(Token left)
     {
         NodeCompExpr* comp = arena.emplace<NodeCompExpr>();
@@ -337,6 +352,13 @@ class Parser {
                 if(auto next = peek())
                 {
                     Token t = next.value();
+                    if(t.type == TokenType::_dot)
+                    {
+                        take();
+                        token.val.value() += "." + parse_member();
+                        if(auto n = peek())
+                            t = n.value();
+                    }
                     if(t.type == TokenType::_eq || t.type == TokenType::_greater || t.type == TokenType::_less || t.type == TokenType::_neq || t.type == TokenType::_greater_eq || t.type == TokenType::_less_eq)
                     {
                         // Parse the comparison expression
@@ -403,6 +425,11 @@ class Parser {
             }
             else if(token.type == TokenType::_ident) // Case identifier
             {
+                if(peek().has_value() && peek().value().type == TokenType::_dot)
+                {
+                    take();
+                    token.val.value() += "." + parse_member();
+                }
                 auto ident = arena.emplace<NodeIdent>(token);
                 term->val = ident;
                 return term;
@@ -463,7 +490,7 @@ class Parser {
                 }
 
                 auto p = try_take(TokenType::_comma);
-                if(!p)
+                if(!p && i != members - 1)
                 {
                     std::cerr << "SyntaxError: Expected ',' on line " << open->line << std::endl;
                     exit(EXIT_FAILURE);
@@ -489,7 +516,7 @@ class Parser {
     {
         if((peek().value().type == TokenType::_ident) && peek(1).has_value() && peek(1).value().type == TokenType::_ident && peek(2).has_value() && peek(2).value().type == TokenType::_open_b)
         {
-            UDType* type = dynamic_cast<UDType*>(TypeControl::GetInstance()->FindType(take().val.value()));
+            const UDType* type = dynamic_cast<const UDType*>(TypeControl::GetInstance()->FindType(take().val.value()));
             if(type == nullptr)
             {
                 std::cerr << "TypeError: Type '" << type->name << "' does not exist" << std::endl;
@@ -499,15 +526,16 @@ class Parser {
             vars.insert({name.val.value(), type});
             if(auto str = parse_inline_ud_decl(*type))
             {
-                auto struct_ = arena.emplace<NodeStmtStructDecl>();
+                if(!semicolon())
+                {
+                    std::cerr << "SyntaxError: Expected ';' on line" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                auto struct_ = arena.emplace<NodeStmtStructDecl>(name, str.value());
                 return struct_;
             }
-
-            if(!semicolon())
-            {
-                std::cerr << "SyntaxError: Expected ';' on line" << std::endl;
-                exit(EXIT_FAILURE);
-            }
+            std::cerr << "SyntaxError: Expected struct initialisation on line " << peek(-1)->line << std::endl;
+            exit(EXIT_FAILURE); 
         }
 
         return {};
@@ -517,14 +545,14 @@ class Parser {
     {
         if((peek().value().type == TokenType::_type) && peek(1).has_value() && peek(1).value().type == TokenType::_ident && peek(2).has_value() && peek(2).value().type == TokenType::_assign)
         {
-            GeneralType* type = TypeControl::GetInstance()->FindType(take().val.value());
+            const GeneralType* type = TypeControl::GetInstance()->FindType(take().val.value());
             if(type == nullptr)
             {
                 std::cerr << "TypeError: Type '" << type->name << "' does not exist" << std::endl;
                 exit(EXIT_FAILURE);
             }
 
-            auto stmt_var = arena.emplace<NodeStmtVarDecl>(take(), *type);
+            auto stmt_var = arena.emplace<NodeStmtVarDecl>(take(), type);
             take(); // take '=' operator
             if(auto expr = parse_expr(*type))
             {
@@ -666,12 +694,17 @@ class Parser {
                 auto stmt = arena.emplace<NodeStmt>(_while.value());
                 return stmt;
             }
+            else if(auto _ud_decl = parse_ud_declaration())
+            {
+                auto stmt = arena.emplace<NodeStmt>(_ud_decl.value());
+                return stmt;
+            }
         }
 
         return {};
     }
 
-    inline std::optional<NodeStmtAssign*> parse_member_assign(UDType* type, std::string mems = "")
+    inline std::optional<NodeStmtAssign*> parse_member_assign(const UDType* type, std::string mems = "")
     {
         if(auto dot = try_take(TokenType::_dot))
         {
@@ -728,16 +761,35 @@ class Parser {
 
     inline std::optional<NodeStmtAssign*> parse_assign()
     {
-        if(auto id = try_take(TokenType::_ident))
+        if(peek().value().type == TokenType::_ident)
         {
-            auto ident = id.value();
-            GeneralType* type = TypeControl::GetInstance()->FindType(id->val.value());
+            Token ident;
+            std::string t = "";
+            if(peek().has_value() && peek().value().type == TokenType::_dot)
+            {
+                ident = take();
+                t = parse_member();
+            }
+            else
+            {
+                if(peek(1).has_value() && peek(1).value().type != TokenType::_assign)
+                {
+                    return {};
+                }
+                else
+                {
+                    ident = take();
+                }
+            }
+
+            ident.val.value() += t;
+            const GeneralType* type = vars.at(ident.val.value());
             if(type == nullptr)
             {
                 std::cerr << "Type does not exist on line " << ident.line << std::endl;
                 exit(EXIT_FAILURE);
             }
-            UDType* stype = dynamic_cast<UDType*>(type);
+            const UDType* stype = dynamic_cast<const UDType*>(type);
             if(peek().has_value() && peek().value().type == TokenType::_assign)
             {
                 if(stype == nullptr)
@@ -750,7 +802,7 @@ class Parser {
                         std::cerr << "SyntaxError: Variable '" << ident.val.value() << "' is not defined" << std::endl;
                         exit(EXIT_FAILURE);
                     }
-                    GeneralType* type = vars.at(ident.val.value());
+                    const GeneralType* type = vars.at(ident.val.value());
                     if(auto parse = parse_expr(*type))
                     {
                         assign->expr = parse.value();
@@ -758,6 +810,7 @@ class Parser {
                         {
                         case 0: // NodeExpr*
                             {
+                                std::cerr << "parser 780\n";
                                 NodeExpr* expr = std::get<NodeExpr*>(assign->expr);
                                 expr->type = type;
                             }
@@ -1053,7 +1106,7 @@ class Parser {
     std::vector<Token> tokens;
     ArenaAllocator arena;
     size_t index = 0;
-    std::map<std::string, GeneralType*> vars;
+    std::map<std::string, const GeneralType*> vars;
 
     inline std::optional<Token> peek(const int offset = 0) const
     {

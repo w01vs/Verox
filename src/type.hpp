@@ -43,7 +43,7 @@ class TypeControl {
     }
     int RegisterType(const GeneralType& type)
     {
-        typenames.emplace(type.name, &type);
+        typenames.insert(std::pair<std::string, const GeneralType*>(type.name, &type));
         return 0;
     }
     int UnregisterType(const GeneralType& type)
@@ -54,13 +54,13 @@ class TypeControl {
         typenames.erase(end);
         return 0;
     }
-    GeneralType* FindType(const UDType& type)
+    const GeneralType* FindType(const UDType& type)
     {
         if(typenames.count(type.name) > 0)
             return typenames.at(type.name);
         return nullptr;
     }
-    GeneralType* FindType(std::string name)
+    const GeneralType* FindType(std::string name)
     {
         if(typenames.count(name) > 0)
             return typenames.at(name);
@@ -90,5 +90,5 @@ class TypeControl {
         RegisterType(_undefined);
     }
     ~TypeControl() = default;
-    std::map<std::string, GeneralType*> typenames;
+    std::map<std::string, const GeneralType*> typenames;
 };

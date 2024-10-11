@@ -11,7 +11,6 @@ struct NodeIntLit {
 
 struct NodeIdent {
     Token ident; // var name
-    std::string structname;
 };
 
 struct NodeBool {
@@ -71,7 +70,7 @@ struct NodeCompExpr {
 
 struct NodeExpr {
     std::variant<NodeBinTerm*, NodeBinExpr*, NodeLogicTerm*, NodeLogicExpr*, NodeCompExpr*> var;
-    std::optional<GeneralType*> type;
+    std::optional<const GeneralType*> type;
 };
 
 struct NodeLogicExprAnd {
@@ -139,7 +138,7 @@ struct NodeInternal {
 };
 
 struct NodeStmtStructMove {
-    UDType type;
+    const UDType type;
     std::vector<std::variant<NodeExpr*, NodeStmtStructMove*>> exprs;
 };
 
@@ -151,7 +150,7 @@ struct NodeStmtStructDecl {
 // variable declaration with a type.
 struct NodeStmtVarDecl {
     Token ident; // var name
-    GeneralType* type;
+    const GeneralType* type;
     NodeExpr* expr; // var value
 };
 

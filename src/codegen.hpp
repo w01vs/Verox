@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <variant>
 
 class Generator {
   public:
@@ -35,12 +36,14 @@ class Generator {
         {
         case 0: // Internal things
             {
+                std::cerr << "38\n";
                 NodeInternal* var = std::get<NodeInternal*>(stmt->var);
                 gen_internal(var, loop_id);
                 break;
             }
         case 1: // Declaration
             {
+                std::cerr << "45\n";
                 NodeStmtVarDecl* var = std::get<NodeStmtVarDecl*>(stmt->var);
                 if(is_declared(var->ident.val.value()))
                 {
@@ -54,18 +57,21 @@ class Generator {
             }
         case 2: // Scope
             {
+                std::cerr << "59\n";
                 NodeScope* scope = std::get<NodeScope*>(stmt->var);
                 gen_scope(scope);
                 break;
             }
         case 3: // If
             {
+                std::cerr << "66\n";
                 NodeIf* ifstmt = std::get<NodeIf*>(stmt->var);
                 gen_if(ifstmt);
                 break;
             }
         case 4: // Assignment/Reassignment
             {
+                std::cerr << "73\n";
                 NodeStmtAssign* assign = std::get<NodeStmtAssign*>(stmt->var);
                 if(!is_declared(assign->ident.val.value()))
                 {
@@ -77,6 +83,7 @@ class Generator {
                 {
                 case 0: // NodeExpr*
                     {
+                        std::cerr << "85\n";
                         NodeExpr* expr = std::get<NodeExpr*>(assign->expr);
                         if(!assign->members)
                         {
@@ -98,10 +105,12 @@ class Generator {
                             auto member_names = split(assign->members.value(), ".");
                             const Chunk& chunk = get_struct(assign->ident.val.value());
                             int offset = 0;
-                            for(std::string& s : member_names) {
-                                GeneralType* t = TypeControl::GetInstance()->FindType(s);
-                                UDType* udt = dynamic_cast<UDType*>(t);
-                                if(udt != nullptr) {
+                            for(std::string& s : member_names)
+                            {
+                                const GeneralType* t = TypeControl::GetInstance()->FindType(s);
+                                const UDType* udt = dynamic_cast<const UDType*>(t);
+                                if(udt != nullptr)
+                                {
                                     offset += udt->offsets.at(s);
                                 }
                             }
@@ -115,7 +124,7 @@ class Generator {
                 case 1: // NodeStmtStructMove
                     {
                         const Chunk& chunk = get_struct(assign->ident.val.value());
-
+                        std::cerr << "126\n";
                         NodeStmtStructMove* move = std::get<NodeStmtStructMove*>(assign->expr);
                         if(*chunk.type != move->type)
                         {
@@ -128,20 +137,27 @@ class Generator {
 
                         break;
                     }
+                default:
+                    break;
                 }
+                break;
             }
         case 5: // While loop
             {
+                std::cerr << "143\n";
                 NodeWhile* _while = std::get<NodeWhile*>(stmt->var);
                 gen_while(_while);
                 break;
             }
-        case 6:
+        case 6: // NodeStmtStructDecl*
             {
+                std::cerr << "151\n";
                 NodeStmtStructDecl* s_assign = std::get<NodeStmtStructDecl*>(stmt->var);
                 gen_struct_expr(s_assign);
                 break;
             }
+        default:
+            break;
         }
     }
 
@@ -161,12 +177,14 @@ class Generator {
             {
             case 0: // NodeExpr*
                 {
+                    std::cerr << "173\n";
                     NodeExpr* expr = std::get<NodeExpr*>(item);
                     gen_expr(expr);
                     break;
                 }
             case 1: // NodeStmtStructMove*
                 {
+                    std::cerr << "180\n";
                     NodeStmtStructMove* move = std::get<NodeStmtStructMove*>(item);
                     gen_struct_move(move);
                     break;
@@ -289,26 +307,31 @@ class Generator {
     {
         if(expr->var.index() == 0) // BinTerm
         {
+            std::cerr << "303\n";
             NodeBinTerm* term = std::get<NodeBinTerm*>(expr->var);
             gen_binary_term(term);
         }
         else if(expr->var.index() == 1) // BinExpr
         {
+            std::cerr << "309\n";
             NodeBinExpr* binexpr = std::get<NodeBinExpr*>(expr->var);
             gen_binary_expression(binexpr);
         }
         else if(expr->var.index() == 2) // LogicTerm
         {
+            std::cerr << "315\n";
             NodeLogicTerm* term = std::get<NodeLogicTerm*>(expr->var);
             gen_logic_term(term);
         }
         else if(expr->var.index() == 3) // LogicExpr
         {
+            std::cerr << "321\n";
             NodeLogicExpr* logic = std::get<NodeLogicExpr*>(expr->var);
             gen_logic_expression(logic);
         }
         else if(expr->var.index() == 4) // CompExpr
         {
+            std::cerr << "327\n";
             NodeCompExpr* comp = std::get<NodeCompExpr*>(expr->var);
             gen_comp_expression(comp);
         }
@@ -318,27 +341,69 @@ class Generator {
     {
         if(term->val.index() == 0) // Identifier
         {
-            int val;
+            std::cerr << "338\n";
             NodeIdent* ident = std::get<NodeIdent*>(term->val);
-            if(!is_declared(ident->ident.val.value()))
+
+            if(ident->ident.val.value().find(".") != std::string::npos)
             {
-                std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
-                exit(EXIT_FAILURE);
+                std::vector<std::string> ss = split(ident->ident.val.value(), ".");
+                if(!is_declared(ss.at(0)))
+                {
+                    std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                const Chunk& ch = get_struct(ss.at(0));
+                int offset = 0;
+                const UDType* t = nullptr;
+
+                const UDType* type = dynamic_cast<const UDType*>(ch.type);
+                for(int i = 1; i < ss.size(); i++)
+                {
+                    const GeneralType* x = type->members.at(ss[i]);
+                    t = dynamic_cast<const UDType*>(x);
+                    if(t == nullptr)
+                    {
+                        if(*x != TypeControl::_int && *x != TypeControl::_bool)
+                        {
+                            std::cerr << "Error: Member variable '" << ident->ident.val.value() << "' is not of type 'int' or 'bool' on line " << ident->ident.line << std::endl;
+                            exit(EXIT_FAILURE);
+                        }
+                    }
+
+                    offset += type->offsets.at(ss[i]);
+
+                    if(t != nullptr)
+                        type = t;
+                }
+                std::stringstream offs;
+                code << "    ;; Loading variable '" << ch.name << "'\n";
+                offs << "QWORD [rsp + " << (sp - (sp - ch.start_stackl + (offset / 8)) - 1) * 8 << "]";
+                push(offs.str());
+                code << "\n";
             }
-            const Var& var = get_var(ident->ident.val.value());
-            if(*var.type != TypeControl::_int && *var.type != TypeControl::_bool)
+            else
             {
-                std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'int' or 'bool' on line " << ident->ident.line << std::endl;
-                exit(EXIT_FAILURE);
+                if(!is_declared(ident->ident.val.value()))
+                {
+                    std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                const Var& var = get_var(ident->ident.val.value());
+                if(*var.type != TypeControl::_int && *var.type != TypeControl::_bool)
+                {
+                    std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'int' or 'bool' on line " << ident->ident.line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                std::stringstream offset;
+                code << "    ;; Loading variable '" << var.name << "'\n";
+                offset << "QWORD [rsp + " << (sp - var.stackl - 1) * 8 << "]";
+                push(offset.str());
+                code << "\n";
             }
-            std::stringstream offset;
-            code << "    ;; Loading variable '" << var.name << "'\n";
-            offset << "QWORD [rsp + " << (sp - var.stackl - 1) * 8 << "]";
-            push(offset.str());
-            code << "\n";
         }
         else if(term->val.index() == 1) // Immediate Int
         {
+            std::cerr << "389\n";
             NodeIntLit* i_int = std::get<NodeIntLit*>(term->val);
             code << "    mov rax, " << i_int->i_int.val.value() << "\n";
             push("rax");
@@ -346,6 +411,7 @@ class Generator {
         }
         else if(term->val.index() == 2) // Parentheses
         {
+            std::cerr << "397\n";
             NodeTermParens* paren = std::get<NodeTermParens*>(term->val);
             gen_expr(paren->expr);
         }
@@ -358,6 +424,7 @@ class Generator {
         {
         case 0: // Return
             {
+                std::cerr << "410\n";
                 NodeInternalRet* ret = std::get<NodeInternalRet*>(internal->internal);
                 code << "    ;; Return\n";
                 gen_expr(ret->ret);
@@ -375,13 +442,14 @@ class Generator {
             }
         case 1: // Printf
             {
+                std::cerr << "428\n";
                 NodeInternalPrintf* print = std::get<NodeInternalPrintf*>(internal->internal);
                 code << "    ;; Printf\n";
-                gen_expr(print->print);
                 break;
             }
         case 2: // Loop Flow
             {
+                std::cerr << "435\n";
                 NodeLoopFlow* flow = std::get<NodeLoopFlow*>(internal->internal);
                 switch(*flow)
                 {
@@ -410,6 +478,7 @@ class Generator {
     {
         if(binexpr->val.index() == 0) // Add
         {
+            std::cerr << "464\n";
             NodeBinExprAdd* add = std::get<NodeBinExprAdd*>(binexpr->val);
             gen_expr(add->lhs);
             gen_expr(add->rhs);
@@ -421,6 +490,7 @@ class Generator {
         }
         else if(binexpr->val.index() == 1) // Division
         {
+            std::cerr << "476\n";
             NodeBinExprDiv* div = std::get<NodeBinExprDiv*>(binexpr->val);
             gen_expr(div->lhs);
             gen_expr(div->rhs);
@@ -433,6 +503,7 @@ class Generator {
         }
         else if(binexpr->val.index() == 2) // Subtraction
         {
+            std::cerr << "489\n";
             NodeBinExprSub* sub = std::get<NodeBinExprSub*>(binexpr->val);
             gen_expr(sub->lhs);
             gen_expr(sub->rhs);
@@ -444,6 +515,7 @@ class Generator {
         }
         else if(binexpr->val.index() == 3) // Multiplication
         {
+            std::cerr << "501\n";
             NodeBinExprMult* mul = std::get<NodeBinExprMult*>(binexpr->val);
             gen_expr(mul->lhs);
             gen_expr(mul->rhs);
@@ -464,6 +536,7 @@ class Generator {
     {
         if(comp->val.index() == 0) // Equal
         {
+            std::cerr << "522\n";
             NodeCompExprEq* eq = std::get<NodeCompExprEq*>(comp->val);
             gen_binary_term(eq->lhs);
             gen_binary_term(eq->rhs);
@@ -477,6 +550,7 @@ class Generator {
         }
         else if(comp->val.index() == 1) // Greater
         {
+            std::cerr << "536\n";
             NodeCompExprGreater* greater = std::get<NodeCompExprGreater*>(comp->val);
             gen_binary_term(greater->lhs);
             gen_binary_term(greater->rhs);
@@ -490,6 +564,7 @@ class Generator {
         }
         else if(comp->val.index() == 2) // Less
         {
+            std::cerr << "550\n";
             NodeCompExprLess* less = std::get<NodeCompExprLess*>(comp->val);
             gen_binary_term(less->lhs);
             gen_binary_term(less->rhs);
@@ -503,6 +578,7 @@ class Generator {
         }
         else if(comp->val.index() == 3) // Greater or Equal
         {
+            std::cerr << "564\n";
             NodeCompExprGreaterEq* greater_eq = std::get<NodeCompExprGreaterEq*>(comp->val);
             gen_binary_term(greater_eq->lhs);
             gen_binary_term(greater_eq->rhs);
@@ -516,10 +592,21 @@ class Generator {
         }
         else if(comp->val.index() == 4) // Less or Equal
         {
+            std::cerr << "578\n";
             NodeCompExprLessEq* less_eq = std::get<NodeCompExprLessEq*>(comp->val);
+            gen_binary_term(less_eq->lhs);
+            gen_binary_term(less_eq->rhs);
+            pop("rdi");
+            pop("rax");
+            code << "    cmp rax, rdi\n";
+            code << "    setle al\n";
+            code << "    movzx rax, al\n";
+            push("rax");
+            code << "\n";
         }
         else if(comp->val.index() == 5) // Not Equal
         {
+            std::cerr << "592\n";
             NodeCompExprNeq* neq = std::get<NodeCompExprNeq*>(comp->val);
             gen_binary_term(neq->lhs);
             gen_binary_term(neq->rhs);
@@ -537,26 +624,64 @@ class Generator {
     {
         if(term->val.index() == 0) // Identifier
         {
+            std::cerr << "610\n";
             NodeIdent* ident = std::get<NodeIdent*>(term->val);
-            if(!is_declared(ident->ident.val.value()))
+
+            if(ident->ident.val.value().find(".") != std::string::npos)
             {
-                std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
-                exit(EXIT_FAILURE);
+                std::vector<std::string> ss = split(ident->ident.val.value(), ".");
+                if(!is_declared(ss.at(0)))
+                {
+                    std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                const Chunk& ch = get_struct(ss.at(0));
+                int offset = 0;
+                UDType* t = nullptr;
+                for(int i = 0; i < ss.size(); i++)
+                {
+                    GeneralType* x = ch.type->members.at(ss[i]);
+                    t = dynamic_cast<UDType*>(x);
+                    if(t == nullptr)
+                    {
+                        if(*x != TypeControl::_int && *x != TypeControl::_bool)
+                        {
+                            std::cerr << "Error: Member variable '" << ident->ident.val.value() << "' is not of type 'int' or 'bool' on line " << ident->ident.line << std::endl;
+                            exit(EXIT_FAILURE);
+                        }
+                    }
+
+                    offset += ch.type->offsets.at(ss[i]);
+                }
+                std::stringstream offs;
+                code << "    ;; Loading variable '" << ch.name << "'\n";
+                offs << "QWORD [rsp + " << (sp - (sp - ch.start_stackl + (offset / 8)) - 1) * 8 << "]";
+                push(offs.str());
+                code << "\n";
             }
-            const Var& var = get_var(ident->ident.val.value());
-            if(*var.type != TypeControl::_bool)
+            else
             {
-                std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'bool' on line " << ident->ident.line << std::endl;
-                exit(EXIT_FAILURE);
+                if(!is_declared(ident->ident.val.value()))
+                {
+                    std::cerr << "Error: Undeclared identifier '" << ident->ident.val.value() << "' on line " << ident->ident.line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                const Var& var = get_var(ident->ident.val.value());
+                if(*var.type != TypeControl::_bool)
+                {
+                    std::cerr << "Error: Identifier '" << ident->ident.val.value() << "' is not of type 'bool' on line " << ident->ident.line << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                std::stringstream offset;
+                code << "    ;; Loading variable '" << var.name << "'\n";
+                offset << "QWORD [rsp + " << (sp - var.stackl - 1) * 8 << "]";
+                push(offset.str());
+                code << "\n";
             }
-            std::stringstream offset;
-            code << "    ;; Loading variable '" << var.name << "'\n";
-            offset << "QWORD [rsp + " << (sp - var.stackl - 1) * 8 << "]";
-            push(offset.str());
-            code << "\n";
         }
         else if(term->val.index() == 1) // Boolean
         {
+            std::cerr << "661\n";
             NodeBool* i_int = std::get<NodeBool*>(term->val);
             code << "    xor rax, rax\n";
             if(i_int->boolean.type == TokenType::_true)
@@ -566,11 +691,13 @@ class Generator {
         }
         else if(term->val.index() == 2) // Parentheses
         {
+            std::cerr << "671\n";
             NodeTermParens* paren = std::get<NodeTermParens*>(term->val);
             gen_expr(paren->expr);
         }
         else if(term->val.index() == 3) // CompExpr
         {
+            std::cerr << "677\n";
             NodeCompExpr* comp = std::get<NodeCompExpr*>(term->val);
             gen_comp_expression(comp);
         }
@@ -581,6 +708,7 @@ class Generator {
     {
         if(expr->val.index() == 0) // And
         {
+            std::cerr << "688\n";
             NodeLogicExprAnd* and_expr = std::get<NodeLogicExprAnd*>(expr->val);
             gen_expr(and_expr->lhs);
             gen_expr(and_expr->rhs);
@@ -592,6 +720,7 @@ class Generator {
         }
         else if(expr->val.index() == 1) // Or
         {
+            std::cerr << "700\n";
             NodeLogicExprOr* or_expr = std::get<NodeLogicExprOr*>(expr->val);
             gen_expr(or_expr->lhs);
             gen_expr(or_expr->rhs);
@@ -603,6 +732,7 @@ class Generator {
         }
         else if(expr->val.index() == 2) // Not
         {
+            std::cerr << "712\n";
             NodeLogicExprNot* not_expr = std::get<NodeLogicExprNot*>(expr->val);
             gen_expr(not_expr->expr);
             pop("rax");
@@ -616,7 +746,7 @@ class Generator {
     struct Var {
         std::string name;
         size_t stackl;
-        GeneralType* type;
+        const GeneralType* type;
         int line;
     };
 
@@ -624,8 +754,10 @@ class Generator {
         std::string name;
         size_t start_stackl;
         size_t size;
-        UDType* type;
+        const UDType* type;
         int line;
+
+        Chunk(std::string name, size_t start_stackl, size_t size, const UDType* type, int line) : name(name), start_stackl(start_stackl), size(size), type(type), line(line) {}
     };
 
     const NodeProg* root;
@@ -642,7 +774,7 @@ class Generator {
     std::vector<Chunk> struct_vars;
     std::unordered_map<std::string, bool> internals_called;
 
-    bool is_declared(std::string identifier) { return std::ranges::find(vars, identifier, &Var::name) != vars.end() || std::ranges::find(struct_vars, identifier, &Chunk::name) != struct_vars.end(); }
+    bool is_declared(std::string identifier) { return (std::ranges::find(vars, identifier, &Var::name) != vars.end() || std::ranges::find(struct_vars, identifier, &Chunk::name) != struct_vars.end()); }
 
     Var get_var(std::string identifier) { return *std::ranges::find(vars, identifier, &Var::name); }
 
